@@ -17,6 +17,7 @@ async function login(page:Page){
   await expect(page.getByRole('heading',{name:'프로젝트',exact:true})).toBeVisible();
 }
 async function upload(page:Page,name:string){
+  await page.getByRole('button',{name:'ZIP 업로드',exact:true}).click();
   await page.getByLabel('프로젝트 ZIP',{exact:true}).setInputFiles(sample(name));
   await page.getByRole('button',{name:'소스 검사',exact:true}).click();
   await expect(page.getByText('지원되는 프로젝트입니다')).toBeVisible();
@@ -32,6 +33,31 @@ function monitor(page:Page){
   return {errors,failures,consoleErrors};
 }
 
+test('Public GitHub URL is the default and deploys without a ZIP or typed project names',async({page,context})=>{
+  await login(page);
+  await page.getByRole('button',{name:'새 프로젝트'}).click();
+  await expect(page.getByRole('button',{name:'공개 GitHub',exact:true})).toHaveAttribute('aria-pressed','true');
+  await expect(page.getByLabel('프로젝트 ZIP',{exact:true})).toHaveCount(0);
+  const repository='https://github.com/mdn/beginner-html-site-styled';
+  await page.getByLabel('GitHub 저장소 주소',{exact:true}).fill(repository);
+  await expect(page.getByLabel('프로젝트 이름')).toHaveValue('beginner-html-site-styled');
+  await expect(page.getByLabel('프로젝트 주소 (slug)')).toHaveValue(/^beginner-html-site-styled-[a-f0-9]{6}$/);
+  await page.getByRole('button',{name:'소스 검사',exact:true}).click();
+  await expect(page.getByText('지원되는 프로젝트입니다')).toBeVisible({timeout:120000});
+  await page.screenshot({path:evidence('10-github-url.png'),fullPage:true});
+  await page.getByRole('button',{name:'배포하기'}).click();
+  await expect(page.getByRole('link',{name:'Preview 열기'})).toBeVisible({timeout:120000});
+  const url=await page.getByRole('link',{name:'운영 사이트 열기'}).getAttribute('href');
+  const site=await context.newPage();
+  expect((await site.goto(url!))!.status()).toBe(200);
+  await expect(site.getByRole('heading',{name:'Mozilla is cool'})).toBeVisible();
+  const projectId=new URL(page.url()).hash.slice(1);
+  const project=await page.evaluate(async id=>(await fetch('/api/projects/'+id)).json(),projectId);
+  expect(project.source.kind).toBe('GIT');
+  expect(project.source.sha).toMatch(/^[a-f0-9]{40}$/);
+  fs.writeFileSync(evidence('browser-github.json'),JSON.stringify({repository,url,projectId,source_kind:project.source.kind,sha:project.source.sha,preset:project.preset,status:project.deployments[0].status,zip_uploaded:false,names:'automatically filled'},null,2));
+});
+
 test('STATIC UI upload → Preview → promote → rollback → cleanup',async({page,context})=>{
   const issues=monitor(page);
   await page.goto('/');
@@ -41,6 +67,7 @@ test('STATIC UI upload → Preview → promote → rollback → cleanup',async({
   const slug='ui-static-'+Date.now();
   await page.getByLabel('프로젝트 이름').fill('브라우저 시연 · Campus Garden');
   await page.getByLabel('프로젝트 주소 (slug)').fill(slug);
+  await page.getByRole('button',{name:'ZIP 업로드',exact:true}).click();
   await page.getByLabel('프로젝트 ZIP',{exact:true}).setInputFiles(sample('static-v1'));
   await page.getByRole('button',{name:'소스 검사',exact:true}).click();
   await expect(page.getByText('지원되는 프로젝트입니다')).toBeVisible();

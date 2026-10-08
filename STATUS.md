@@ -2,6 +2,8 @@
 
 ## P1 (2026-10-08, Asia/Seoul)
 
+- GitHub 입력 개선: 새 프로젝트의 기본 탭을 공개 GitHub로 변경하고 저장소 URL에서 이름/고유 slug를 자동 입력합니다. 기존 GitHub 수집·지원 검사 API를 그대로 사용하며 ZIP은 별도 탭에서 유지합니다. 공개 GitHub 주소만으로 실제 HTTP 200까지 확인했고 Chromium 전체 4개가 통과했습니다. aurashop은 실제 Git 재검사에서도 Spring Boot/Java 미지원으로 거부되었습니다.
+
 - STATIC/VITE_STATIC P0를 보존하며 NODE_SERVER를 구현했습니다. npm lockfile/start 자동 감지, 제한된 builder의 npm ci/build, 고정 Dockerfile을 통한 immutable image 생성, 전용 internal network의 비root runtime, gateway HTTP proxy가 연결됩니다.
 - 실제 STARTING/HEALTH_CHECK, 별도 build/runtime 로그, 운영 전환 전 재검사, image 재사용 rollback, 소유 자원 보존/정리, startup reconciliation을 구현했습니다. 복구 실패는 UNAVAILABLE/503으로 표시합니다.
 - 검증: 변경 전 45개 → 확장 pytest 73개 PASS; P0 HTTP smoke/robustness PASS; Chromium STATIC/Vite/Node 3개 PASS. 실제 Node 이미지·no host port·promote 실패 보존·image 누락 rollback 실패 보존·기존 image rollback·runtime 실패·서비스/전체 Compose 복구·소유 자원 격리 PASS.

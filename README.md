@@ -22,6 +22,14 @@ Vite 정적 프로젝트를 먼저 판정하고, 그 밖의 npm start 프로젝�
 
 **GitHub 코드 주소는 실행 중인 사이트 주소가 아닙니다.** 플랫폼을 실행한 뒤 관리 화면의 공개 GitHub 입력란에 지원되는 앱 저장소 루트 주소를 넣어 배포하세요. `Gandalem/aurashop`처럼 Spring Boot·MySQL·Redis와 중첩 frontend가 있는 전체 저장소는 이번 Node P1 대상이 아닙니다.
 
+## GitHub 주소로 배포하기
+
+1. 관리 화면 `http://localhost:3000`을 새로고침하고 **새 프로젝트**를 누릅니다. 기본 선택은 **공개 GitHub**입니다.
+2. `https://github.com/owner/repository` 주소를 붙여넣습니다. 프로젝트 이름과 고유 주소가 자동으로 채워지며 직접 수정할 수도 있습니다.
+3. **소스 검사 → 배포하기 → READY → 운영 사이트 열기** 순서로 진행합니다. ZIP은 필요하지 않습니다.
+
+바로 시험할 수 있는 정적 예시는 `https://github.com/mdn/beginner-html-site-styled`입니다. Node/Express도 같은 Git 입력 경로를 사용하며 앞의 npm/PORT 조건을 충족해야 합니다. 현재 로컬 설정에서는 이 PC의 Docker가 사이트를 실행합니다. GitHub 업로드만으로 AWS에 사이트가 공개되지는 않습니다. ZIP 입력은 **ZIP 업로드** 탭을 선택하면 계속 사용할 수 있습니다.
+
 ## Windows 시작
 
 최초 준비: Docker Desktop을 **Linux containers** 모드로 실행하고 Python 3.12 이상을 설치합니다. 관리 화면 빌드는 Docker에서 하므로 호스트 Node는 E2E/개발 때만 필요합니다. 이 PC에는 Python 3.13.2, Node 24.11.1, Docker Desktop이 이미 확인되었습니다.

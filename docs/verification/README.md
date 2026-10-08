@@ -2,7 +2,8 @@
 
 Windows + Docker Desktop Linux/amd64에서 실행한 결과입니다. 암호·운영 SQLite·업로드 원본·Docker image tar는 포함하지 않았습니다. 전체 설명은 [VERIFICATION.md](../../VERIFICATION.md)를 참조하세요.
 
-- [검증 요약](summary.json): pytest 73, Chromium 3, 기존 P0 회귀, Node 수명주기.
+- [검증 요약](summary.json): pytest 73, Chromium 4, 기존 P0 회귀, Node 수명주기.
+- [GitHub 주소만 입력한 실제 배포](browser-github.json): 이름/slug 자동 입력, ZIP 없이 GIT 소스 배포, 실제 Chromium HTTP 200.
 - [Node 배포·운영 전환·롤백·재시작](node-lifecycle.json).
 - [운영 이미지 누락 및 자동 복구](node-recovery-failure.json): UNAVAILABLE/503 → 이미지 복원 → RUNNING, 재빌드 없음.
 - [브라우저 실제 POST 및 운영 전환](browser-node.json).

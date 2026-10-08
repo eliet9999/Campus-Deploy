@@ -9,9 +9,9 @@
     "time": "8.096"
   },
   "playwright": {
-    "startTime": "2026-10-08T03:51:39.630Z",
-    "duration": 36995.409,
-    "expected": 3,
+    "startTime": "2026-10-08T04:04:45.384Z",
+    "duration": 43791.827,
+    "expected": 4,
     "skipped": 0,
     "unexpected": 0,
     "flaky": 0
@@ -61,5 +61,16 @@
     "Ubuntu systemd boot",
     "global Docker daemon restart",
     "external client/public DNS testing"
-  ]
+  ],
+  "github_url_browser": {
+    "repository": "https://github.com/mdn/beginner-html-site-styled",
+    "url": "http://p-beginner-html-site-styled-cffed5.localhost:8080",
+    "projectId": "87524f0789ec43919c0193e2d347ef31",
+    "source_kind": "GIT",
+    "sha": "6c7a360ddb4a0d75be06044bf8a914f260ff10c7",
+    "preset": "STATIC",
+    "status": "READY",
+    "zip_uploaded": false,
+    "names": "automatically filled"
+  }
 }

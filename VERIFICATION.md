@@ -10,7 +10,7 @@
 | STATIC/VITE HTTP smoke | P1에서도 실제 npm ci/build·v1/v2·실패 exit 7·운영 전환/롤백 PASS |
 | 확장 pytest | **73 passed**, 감지·tar/link·log·proxy headers·운영 전환 idempotency/실패·중단 복구·startup 오류 표시 검사 |
 | TypeScript/Vite 관리 UI build | PASS |
-| Chromium E2E | STATIC, VITE, NODE_SERVER 3 passed (최종 37.0초); 실제 DNS, 버튼 클릭, 운영 전환/롤백 |
+| Chromium E2E | GitHub URL 입력, STATIC, VITE, NODE_SERVER **4 passed (43.8초)**; 실제 DNS, 버튼 클릭, 운영 전환/롤백 |
 | 기존 robustness.py | 공개 Git/SHA, queue, 취소, timeout, worker SIGKILL, 삭제, 영속성 전체 PASS |
 | node_smoke.py | 아래 P1 수명주기 14개 실제 검사 PASS; 로그·이미지 ID 보존 증거 |
 | node_recovery_failure.py | 실제 운영 컨테이너·이미지 누락 후 startup UNAVAILABLE/HTTP 503, STATIC 보존. 이미지 복원 뒤 자동 RUNNING, 동일 image/build log 확인 PASS |
@@ -18,6 +18,8 @@
 | 최종 audit/doctor | SQLite integrity ok, staging/work 비어 있음, builder/작업 볼륨 0, Node 10개 모두 host port 없음, 운영 HTTP 유지. Chromium DNS PASS; OS getaddrinfo는 11001로 실패 |
 
 GitHub에 포함한 [선별 증적과 화면](docs/verification/README.md), [기계 판독 요약](docs/verification/summary.json)을 확인할 수 있습니다.
+
+GitHub 입력 개선 후 공개 GitHub 기본 탭에서 `https://github.com/mdn/beginner-html-site-styled` 주소만 입력했습니다. 이름/slug 자동 입력 → 소스 검사 → 배포 → 운영 사이트 Chromium HTTP 200 및 실제 제목 표시를 확인했습니다. ZIP은 사용하지 않았으며 소스 종류 GIT와 40자리 commit SHA를 확인했습니다. 기존 ZIP STATIC/Vite/Node 시나리오도 함께 통과했습니다. [GitHub 브라우저 증적](docs/verification/browser-github.json). `Gandalem/aurashop`은 GitHub로 소스를 가져왔지만 Spring Boot/Java 미지원으로 소스 검사에서 거부되었으며 배포 성공으로 취급하지 않습니다.
 
 Node 샘플 Express는 npm registry 확인 후 **5.2.1**로 고정했고 3개 sample lockfile을 생성했습니다. 실제 빌더는 Node v24.11.1 / npm 11.6.2입니다. ZIP SHA-256 또는 Git commit SHA를 배포·이미지 label에 기록합니다.
 
