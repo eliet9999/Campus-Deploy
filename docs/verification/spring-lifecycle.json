@@ -1,0 +1,19 @@
+{
+  "project_id": "6ba17681364e4b6580117d964655b99b",
+  "url": "http://p-aurashop-1791433237.localhost:8080",
+  "checks": [
+    "real MySQL signup/product, Redis login/reissue, persistent upload",
+    "nonroot/read-only/no host ports; DB network excludes API/gateway/worker; no host binds",
+    "new Spring Preview preserves production pointer/data; schema validation only",
+    "promote/code rollback without rebuild; MySQL/uploads/Redis session/signing key preserved",
+    "Compose stop/start + missing runtime/MySQL/Redis containers: same image/data/session automatically recovered",
+    "delete removes only selected Spring project containers/images/volumes/network; other Spring data preserved",
+    "unrelated Docker containers unchanged"
+  ],
+  "deployment": "220c1c59ce094741a14ba1836ea87e08",
+  "image": "sha256:cf515efbf94d9a3e3784f69ab28eeb725e39fc93b893f8b7def14c11d7063cd1",
+  "source_sha": "ab7c23bf5c23b3d9f74c14d8f6172f5cabda990f",
+  "unrelated_container_count": 4,
+  "status": "PASS",
+  "deleted_project_id": "c62996d55ac745738633249f1a191a5d"
+}

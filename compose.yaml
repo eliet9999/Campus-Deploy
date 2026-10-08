@@ -22,6 +22,10 @@ x-common: &common
     SITE_PORT: ${SITE_PORT:-8080}
     INSTANCE_ID: ${INSTANCE_ID:-campus-deploy-local}
     BUILD_IMAGE: ${BUILD_IMAGE:-node:24.11.1-bookworm-slim}
+    JAVA_BUILD_IMAGE: ${JAVA_BUILD_IMAGE:-gradle:9.4.1-jdk21}
+    JAVA_RUNTIME_IMAGE: ${JAVA_RUNTIME_IMAGE:-eclipse-temurin:21.0.10_7-jre-jammy}
+    MYSQL_IMAGE: ${MYSQL_IMAGE:-mysql:8.4.8}
+    REDIS_IMAGE: ${REDIS_IMAGE:-redis:7.4.8-alpine}
     UPLOAD_LIMIT_MIB: ${UPLOAD_LIMIT_MIB:-50}
     EXTRACT_LIMIT_MIB: ${EXTRACT_LIMIT_MIB:-200}
     ARTIFACT_LIMIT_MIB: ${ARTIFACT_LIMIT_MIB:-100}

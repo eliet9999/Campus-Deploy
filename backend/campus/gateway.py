@@ -31,7 +31,7 @@ async def proxy_runtime(row, request):
         if len(body) > 2 * 1024**2:
             raise HTTPException(413, 'HTTP request body limit: 2MiB')
     headers = [(k, v) for k, v in proxy_headers(request.headers)
-               if k.lower() not in ('forwarded', 'x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto')]
+               if k.lower() != 'forwarded' and not k.lower().startswith('x-forwarded-')]
     headers.extend([('x-forwarded-proto', request.url.scheme), ('x-forwarded-host', request.headers['host'])])
     # Construct the authority exclusively from the validated ID, never urljoin(user_path).
     target = httpx.URL(f'http://runtime-{dep}:8080').copy_with(
@@ -88,6 +88,11 @@ def create_app(settings=None):
             raise HTTPException(404)
         if row['preset'] == 'NODE_SERVER':
             return await proxy_runtime(row, request)
+        if row['preset'] == 'SPRING_BOOT':
+            if row['runtime_state'] not in ('RUNNING', 'HEALTH_CHECK'):
+                raise HTTPException(503, 'Spring Boot/MySQL/Redis 준비 또는 복구 중입니다.')
+            if path == 'api' or path.startswith('api/') or path.startswith('uploads/'):
+                return await proxy_runtime(row, request)
         if request.method not in ('GET', 'HEAD'):
             raise HTTPException(405)
         if not row['artifact']:
@@ -111,7 +116,7 @@ def create_app(settings=None):
             file /= 'index.html'
         if not file.is_file():
             accepts_html = 'text/html' in request.headers.get('accept', '')
-            if row['preset'] == 'VITE_STATIC' and not PurePosixPath(path).suffix and accepts_html:
+            if row['preset'] in ('VITE_STATIC', 'SPRING_BOOT') and not PurePosixPath(path).suffix and accepts_html:
                 file = root / 'index.html'
             else:
                 raise HTTPException(404)

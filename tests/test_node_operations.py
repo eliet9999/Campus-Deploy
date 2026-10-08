@@ -12,8 +12,8 @@ from campus.safety import Rejected
 from campus.worker import Worker
 
 
-@pytest.fixture
-def env(tmp_path, monkeypatch):
+@pytest.fixture(params=['NODE_SERVER', 'SPRING_BOOT'])
+def env(tmp_path, monkeypatch, request):
     cfg=Settings(data=tmp_path/'data',secrets=tmp_path/'secrets',min_free=0)
     initialize_secrets(cfg)
     worker=Worker(cfg);assert worker.acquire()
@@ -24,6 +24,8 @@ def env(tmp_path, monkeypatch):
         for dep in (a,b):
             con.execute("INSERT INTO deployments(id,project_id,source_id,sha,preset,settings,status,created,stages,runtime_image,runtime_state) VALUES(?,?,'s',?,'NODE_SERVER','{}','READY',0,'{}',?,'RUNNING')",(dep,pid,'a'*64,'sha256:'+'b'*64))
         con.execute("INSERT INTO transitions(project_id,deployment_id,kind,created) VALUES(?,?,'promote',0)",(pid,a))
+        con.execute('UPDATE projects SET preset=?', (request.param,))
+        con.execute('UPDATE deployments SET preset=?', (request.param,))
     monkeypatch.setattr(worker.runtime,'start',lambda row,recreate=False:'container')
     monkeypatch.setattr(worker.runtime,'health',lambda row:{'status':200})
     monkeypatch.setattr(worker.runtime,'retain',lambda pid:None)

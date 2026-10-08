@@ -7,7 +7,7 @@
 - 관리 127.0.0.1:3000 / 사이트 8080. worker만 Docker socket. 빌드 컨테이너에 관리 네트워크·비밀·socket 전달 금지.
 - 사용자 코드 실행은 제한된 비root 일회성 컨테이너 안에서만. ZIP/tar/Host/경로/URL 검증과 소유 자원만 정리. system prune 금지.
 - AWS 자원/유료 서비스 변경 금지. 사용자 승인에 따라 완성본을 https://github.com/eliet9999/Campus-Deploy.git 에 업로드한다.
-- Node 외의 서버 앱, DB, Redis, WebSocket, cron/worker, 사용자 Dockerfile, 사설 Git, monorepo, webhook/자동 HTTPS는 구현하지 않는다.
+- 2026-10-08 사용자 승인으로 SPRING_BOOT (Java 21/Gradle, frontend/ Vite, MySQL, Redis, uploads 영속 저장)을 추가한다. aurashop URL 실제 실행을 검증한다. Python, WebSocket, cron/worker, 사용자 Dockerfile 실행, 사설 Git, 일반 monorepo, webhook/자동 HTTPS는 범위 밖이다.
 - runtime은 전용 internal network, 비root/자원 제한/no host ports. 배포 이미지 보존, health 후 운영 포인터 변경, 재빌드 없는 롤백, startup reconciliation. 다른 프로젝트 자원에 영향 금지.
 - 실제 HTTP, JS/CSS, 브라우저 동작과 로그를 검증한다. 테스트 성공을 꾸미지 않고 미검증/실패를 VERIFICATION.md에 구분한다.
 - 고정 의존성/lockfile, 초기화·doctor·start·stop, 샘플, pytest/E2E 및 요청된 운영 문서를 제공한다. STATUS.md를 갱신한다.

@@ -114,6 +114,13 @@ class DB:
             raise ValueError('unknown log stream')
         column = 'runtime_log_bytes' if stream == 'runtime' else 'log_bytes'
         message = str(message).replace('\x00', '')
+        project = self.one('SELECT project_id FROM deployments WHERE id=?', (dep,))
+        if project:
+            credentials = self.settings.data / 'services' / (project['project_id'] + '.json')
+            if credentials.is_file():
+                values = json.loads(credentials.read_text('utf-8'))
+                for key in ('mysql', 'root', 'redis', 'jwt'):
+                    message = message.replace(values[key], '[REDACTED]')
         with self.tx() as con:
             row = con.execute(f'SELECT {column} AS used FROM deployments WHERE id=?', (dep,)).fetchone()
             if not row:
@@ -142,6 +149,11 @@ def new_deployment(con, project, source, settings):
         snapshot.update(build='npm ci && npm run build --if-present', output='immutable Docker image',
                         start='npm start', port=8080, runtime_memory_bytes=512 * 1024**2,
                         runtime_cpu=0.5, runtime_pids=128, health_path='/', health_timeout=settings.health_timeout)
+    if source['preset'] == 'SPRING_BOOT':
+        snapshot.update(build='frontend: npm ci/build; backend: Gradle bootJar', output='frontend dist + immutable Java image',
+                        start='java -jar /app/app.jar', port=8080, runtime_memory_bytes=1024*1024**2,
+                        runtime_cpu=0.5, runtime_pids=128, health_timeout=settings.spring_health_timeout,
+                        services=['MySQL', 'Redis', 'uploads'], data_policy='project-shared; code-only rollback; validate schema after first production')
     con.execute('INSERT INTO deployments(id,project_id,source_id,sha,preset,settings,status,created,stages) VALUES(?,?,?,?,?,?,?,?,?)',
                 (dep, project, source['id'], source['sha'], source['preset'], json.dumps(snapshot), 'QUEUED', now, json.dumps({'QUEUED': now})))
     enqueue(con, 'DEPLOY', dep)

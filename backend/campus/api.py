@@ -109,14 +109,14 @@ def create_app(settings=None):
             row[key] = json.loads(row[key]) if row[key] else None
         row['preview_url'] = cfg.site_url('d-' + row['id'])
         row['deployment_status'] = row['status']
-        if row['status'] == 'READY' and row['preset'] == 'NODE_SERVER' and row['runtime_state'] == 'UNAVAILABLE':
+        if row['status'] == 'READY' and row['preset'] in ('NODE_SERVER', 'SPRING_BOOT') and row['runtime_state'] == 'UNAVAILABLE':
             row['status'] = 'UNAVAILABLE'
         return row
 
     def present_project(row):
         row['production_url'] = cfg.site_url('p-' + row['slug'])
         prod = db.one('SELECT status,preset,runtime_state,runtime_error FROM deployments WHERE id=?', (row['production_id'],)) if row['production_id'] else None
-        row['production_health'] = (prod['runtime_state'] if prod['preset'] == 'NODE_SERVER' else prod['status']) if prod else None
+        row['production_health'] = (prod['runtime_state'] if prod['preset'] in ('NODE_SERVER', 'SPRING_BOOT') else prod['status']) if prod else None
         row['production_error'] = prod['runtime_error'] if prod else None
         return row
 
@@ -200,7 +200,7 @@ def create_app(settings=None):
 
     @app.get('/api/projects')
     def projects():
-        rows = db.all('''SELECT p.*, (SELECT CASE WHEN status='READY' AND preset='NODE_SERVER' AND runtime_state='UNAVAILABLE' THEN 'UNAVAILABLE' ELSE status END FROM deployments d WHERE d.project_id=p.id ORDER BY created DESC LIMIT 1) latest_status,
+        rows = db.all('''SELECT p.*, (SELECT CASE WHEN status='READY' AND preset IN ('NODE_SERVER','SPRING_BOOT') AND runtime_state='UNAVAILABLE' THEN 'UNAVAILABLE' ELSE status END FROM deployments d WHERE d.project_id=p.id ORDER BY created DESC LIMIT 1) latest_status,
           (SELECT created FROM deployments d WHERE d.project_id=p.id ORDER BY created DESC LIMIT 1) latest_at
           FROM projects p WHERE deleted=0 ORDER BY created DESC''')
         return [present_project(row) for row in rows]
@@ -289,7 +289,7 @@ def create_app(settings=None):
                 raise HTTPException(409, '정상 산출물이 있는 READY 배포만 운영할 수 있습니다.')
             if body.kind == 'rollback' and not con.execute('SELECT 1 FROM transitions WHERE project_id=? AND deployment_id=?', (pid, body.deployment_id)).fetchone():
                 raise HTTPException(409, '과거 운영에 사용된 배포만 롤백할 수 있습니다.')
-            if dep['preset'] == 'NODE_SERVER':
+            if dep['preset'] in ('NODE_SERVER', 'SPRING_BOOT'):
                 if not dep['runtime_image']:
                     raise HTTPException(409, '보존된 runtime image가 없습니다.')
                 if con.execute("SELECT 1 FROM operations WHERE project_id=? AND status IN ('QUEUED','HEALTH_CHECK')", (pid,)).fetchone():

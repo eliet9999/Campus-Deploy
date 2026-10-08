@@ -78,10 +78,64 @@
     "deleted_artifacts_absent": true,
     "staging_empty": true,
     "work_empty": true,
-    "deployment_count": 63
+    "deployment_count": 87
   },
   "post_stop_start_production_and_logs": true,
-  "node_runtimes": [
+  "server_runtimes": [
+    {
+      "deployment": "ad3da2c247bd46728216efb0d595ab68",
+      "image": "sha256:e9725f45b0dd11a75db9d8d6dcfdbc27e87586b24cee15146ef169b24c898f06",
+      "state": "running",
+      "published_ports": false
+    },
+    {
+      "deployment": "d329737e565a416895a9cc903a7acadb",
+      "image": "sha256:7bf5816f739c7723c422df1bbeecd34047363d6c397608b8ca17b1487e19c208",
+      "state": "running",
+      "published_ports": false
+    },
+    {
+      "deployment": "2a70b1cdbb6a4376a7567624aa5c31af",
+      "image": "sha256:d88b5f3f2ddd1ead46089c4a8007ff693eccb49fe3accb819e2b5419c2341fb4",
+      "state": "running",
+      "published_ports": false
+    },
+    {
+      "deployment": "220c1c59ce094741a14ba1836ea87e08",
+      "image": "sha256:cf515efbf94d9a3e3784f69ab28eeb725e39fc93b893f8b7def14c11d7063cd1",
+      "state": "running",
+      "published_ports": false
+    },
+    {
+      "deployment": "6db698a9508a47e5b057bcb0dc39cfac",
+      "image": "sha256:5e201233d8b18e0b4c44ab2f8ef65c0e98d33f15a4bc1d8cd8d515a806758e67",
+      "state": "running",
+      "published_ports": false
+    },
+    {
+      "deployment": "427633affaa94766b903ec96d58ffcad",
+      "image": "sha256:a7933044f1e1663dd380066837d873d494942af4843fa47de7840672e54ae426",
+      "state": "running",
+      "published_ports": false
+    },
+    {
+      "deployment": "808907bdd8b04030958616cfe2bd3b71",
+      "image": "sha256:affaee22f68487b22dcbb31c0214b691e53ebb540c7be854e673891fcf0e0f02",
+      "state": "running",
+      "published_ports": false
+    },
+    {
+      "deployment": "bf972c9bc0ae420db151998acda30e2c",
+      "image": "sha256:ee6771fd59a11a2ac347d8bbc89e712879e1aedca2bb28ed19c4478bdbe467a5",
+      "state": "running",
+      "published_ports": false
+    },
+    {
+      "deployment": "1d6582016efd47c4b33cde9d9c543f3f",
+      "image": "sha256:0d1ea6248f82d43ac28efb00756da33015a7a04c18ff4ae2de9354bd003e2b06",
+      "state": "running",
+      "published_ports": false
+    },
     {
       "deployment": "2b890f92aa8b4d6388688aae6267c418",
       "image": "sha256:13afa54e27ffd50d385424364734a4783bae680630850b499ff016f8e6c4a915",

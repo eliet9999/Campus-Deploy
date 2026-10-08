@@ -1,0 +1,26 @@
+{
+  "url": "http://p-aurashop-b4cfc1.localhost:8080",
+  "projectId": "5b3017430a5b4f5ca90017742aa2e029",
+  "source": "GitHub URL only",
+  "checks": [
+    "signup page + real API",
+    "login UI",
+    "MySQL product/cart",
+    "Redis refresh token",
+    "relative upload URL",
+    "image pixels",
+    "no page errors"
+  ],
+  "not_tested": [
+    "external Daum address selection",
+    "payment"
+  ],
+  "application": {
+    "upload": 200,
+    "imageUrl": "/uploads/1bb624d4-16a4-4fa2-b410-9ab0b5a9233e_campus-test.png",
+    "product": 200,
+    "productId": 1,
+    "cart": 200,
+    "refresh": 200
+  }
+}

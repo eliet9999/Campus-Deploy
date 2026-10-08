@@ -1,0 +1,45 @@
+{
+  "repository": "https://github.com/Gandalem/aurashop",
+  "source_sha": "ab7c23bf5c23b3d9f74c14d8f6172f5cabda990f",
+  "source_id": "80a23e5d9d0e4e778e5eae4073cde3d7",
+  "project_id": "6ba17681364e4b6580117d964655b99b",
+  "deployment_id": "220c1c59ce094741a14ba1836ea87e08",
+  "url": "http://p-aurashop-1791433237.localhost:8080",
+  "status": "READY",
+  "preset": "SPRING_BOOT",
+  "image": "sha256:cf515efbf94d9a3e3784f69ab28eeb725e39fc93b893f8b7def14c11d7063cd1",
+  "validation": {
+    "files": 1,
+    "bytes": 72008426,
+    "image_id": "sha256:cf515efbf94d9a3e3784f69ab28eeb725e39fc93b893f8b7def14c11d7063cd1",
+    "image_tag": "campus-runtime:220c1c59ce094741a14ba1836ea87e08-ab7c23bf5c23",
+    "source_sha": "ab7c23bf5c23b3d9f74c14d8f6172f5cabda990f",
+    "frontend": {
+      "files": 5,
+      "bytes": 396030,
+      "sha256": "743f9f5547b6d5c369cede6d0d0f6ccea2726e053a3609e2bb3a45b4261ca899"
+    },
+    "http_checks": [
+      {
+        "path": "/api/products",
+        "status": 200,
+        "checked": 1791433550.171131
+      },
+      {
+        "path": "/",
+        "status": 200,
+        "type": "text/html; charset=utf-8"
+      },
+      {
+        "path": "/assets/index-LjScahq_.js",
+        "status": 200,
+        "type": "application/javascript"
+      },
+      {
+        "path": "/assets/index-vERPzUKM.css",
+        "status": 200,
+        "type": "text/css; charset=utf-8"
+      }
+    ]
+  }
+}

@@ -1,5 +1,18 @@
 # 실검증 보고서
 
+## Spring Boot 확장 — 2026-10-08
+
+사용자 승인으로 Node 이후 Spring Boot·MySQL·Redis를 추가했습니다. 기존 P0/P1 기록은 아래에 보존합니다. 실행 환경은 동일한 로컬 Windows + Docker Desktop Linux이며 AWS/Ubuntu 실제 부팅은 미실행입니다.
+
+- `Gandalem/aurashop`의 실제 기본 branch `master`, commit `ab7c23bf5c23b3d9f74c14d8f6172f5cabda990f`를 GitHub URL로 수집해 SPRING_BOOT로 판정했습니다. ZIP/DB 암호/포트 입력 없이 Vite/npm ci, Gradle bootJar, Java 이미지, MySQL/Redis를 준비하고 실제 페이지 및 `/api/products` HTTP 200을 확인했습니다.
+- TypeScript/Vite 관리 UI production build PASS. pytest **94 passed (15.29초)**, source/단일 jar·link 경계, 서비스 소유권, 비밀 마스킹, 자격증명 유실 시 기존 DB 암호 재생성 금지, Spring SPA/API/업로드 경로, 전달 헤더 재구성, Node/Spring 전환·복구 오류 회귀 포함.
+- 실제 브라우저에서 회원가입 페이지, 회원가입 API, 로그인 UI, 상품/장바구니 저장, Redis refresh token, 업로드 상대 경로 및 PNG 실제 픽셀 표시를 확인했습니다. 원본 회원가입 폼은 외부 Daum 주소 선택이 필요하므로 외부 주소 검색을 모의 성공으로 처리하지 않고 API에 시험 주소를 제출했습니다. 실제 결제/외부 주소 검색은 미검증입니다.
+- 최종 전체 Chromium **5 passed (약 3.1분)**: GitHub 정적 주소 배포, STATIC, Vite, Node, 새 GitHub aurashop 프로젝트의 실제 배포와 사용자 기능. 최종 audit에서 SQLite integrity ok, staging/work 비어 있음, 잔존 builder/작업 볼륨 0, 모든 Node/Spring runtime의 nonroot/read-only/no host ports 및 network 경계 PASS. [선별 증적](docs/verification/README.md).
+- Preview/운영은 프로젝트 데이터를 공유하고 첫 운영 이후 Hibernate validate를 적용합니다. 롤백은 코드만 되돌리며 데이터 snapshot 복구가 아닙니다. 한계는 [SPRING_BOOT.md](SPRING_BOOT.md)에 명시합니다.
+- `spring_lifecycle.py` **7개 실제 검사 PASS**: MySQL 가입/상품 및 Redis 로그인/재발급·업로드 → nonroot/read-only/no host ports/data network 격리 → Preview의 기존 운영 보존 및 schema validate → 운영 반영·재빌드 없는 이미지 롤백 → Compose 전체 stop/start + Java/MySQL/Redis 컨테이너 삭제 후 같은 이미지/DB/업로드/refresh cookie/서명키 자동 복구 → 별도 Spring 프로젝트 삭제 시 소유 이미지·볼륨·network만 정리 → 무관한 Docker 컨테이너 4개의 ID/상태 불변. 실제 DB 데이터와 세션을 삭제 전후 HTTP로 확인했습니다. EC2 재부팅/글로벌 Docker daemon 재시작과는 구별합니다.
+
+발견·수정 이력: 첫 Redis 실행은 Docker 빈 볼륨에 이미지 기본 소유권이 복사돼 AOF 쓰기가 실패했습니다. 서비스 mount에 no_copy를 적용하고 root uid 초기화를 유지해 해결했습니다. 첫 HTTP smoke는 JSON API에 Accept text/html을 보내 406이었으므로 JSON 요청으로 수정했습니다. 브라우저의 잘못된 PNG fixture를 실제 CRC가 있는 PNG로 교체하고 이미지 load를 기다립니다. 복구 시험은 재시작 직후 과거 RUNNING metadata를 읽을 수 있어 컨테이너 존재와 실제 HTTP까지 확인하도록 보강했습니다. 이 실패들을 성공으로 처리하지 않았습니다.
+
 최신 P1 기준일: **2026-10-08, Asia/Seoul**. 로컬 Windows + Docker Desktop Linux engine에서 실행했습니다. AWS에서 실행하지 않았습니다. 아래 P0 기록은 2026-10-07의 이력이며, 이 절의 P1 회귀 결과가 최신입니다. `evidence/` 원본은 로컬에서 생성되는 비밀 제외 자료이며 Git에는 선별한 요약/스크린샷만 `docs/verification/`에 포함합니다.
 
 ## P1 실제 결과

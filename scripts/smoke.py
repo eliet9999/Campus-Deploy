@@ -48,9 +48,9 @@ class Client:
         row = self.call('POST', f'/api/projects/{pid}/deployments', json={'source_id': sid})
         return self.wait('/api/deployments/' + row['id'])
 
-    def site(self, url, path='/'):
+    def site(self, url, path='/', accept='text/html'):
         parsed = urlsplit(url)
-        return httpx.get('http://127.0.0.1:8080' + path, headers={'Host': parsed.netloc, 'Accept': 'text/html'}, trust_env=False)
+        return httpx.get('http://127.0.0.1:8080' + path, headers={'Host': parsed.netloc, 'Accept': accept}, trust_env=False)
 
 
 def main():

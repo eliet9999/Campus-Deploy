@@ -1,6 +1,6 @@
 # Campus Deploy
 
-공개 GitHub 저장소 또는 ZIP에서 정적 웹사이트와 Node/Express HTTP 서버를 배포하는 팀 시연용 플랫폼입니다. React/TypeScript 관리 화면, FastAPI control-plane, SQLite 영속 큐, 별도 워커, Docker 격리 빌드, 정적 파일 제공·서버 프록시 gateway가 연결되어 있습니다.
+공개 GitHub 저장소 또는 ZIP에서 정적 사이트, Node/Express, Spring Boot + Vite + MySQL/Redis 앱을 배포하는 팀 시연용 플랫폼입니다. React/TypeScript 관리 화면, FastAPI control-plane, SQLite 영속 큐, 별도 워커, Docker 격리 빌드, 정적 파일 제공·서버 프록시 gateway가 연결되어 있습니다.
 
 ## 지원 범위
 
@@ -9,6 +9,7 @@
 | STATIC | 루트 `index.html`, HTML/CSS/클라이언트 JS | npm 실행 없이 정적 파일 수집 |
 | VITE_STATIC | 루트 `package.json`, npm `package-lock.json` v2/v3, Vite 의존성, build script | Node 24 컨테이너에서 `npm ci`, `npm run build`, `dist/index.html` |
 | NODE_SERVER | 루트 `package.json`, npm lockfile v2/v3, `scripts.start` | 격리된 `npm ci`, 선택적 `npm run build --if-present`, 배포별 이미지, `npm start` |
+| SPRING_BOOT | 루트 Spring Boot Gradle/Java 21 + `frontend/` Vite/npm lockfile | Vite 정적 화면 + bootJar/Java 이미지 + 프로젝트별 MySQL·Redis·uploads |
 
 ZIP을 감싼 단일 최상위 폴더는 정규화합니다. 공개 `https://github.com/owner/repo`의 실제 기본 브랜치를 조회하고 commit SHA에 고정된 archive를 가져옵니다. 계정/PAT는 필요 없습니다. npm 공식 registry의 잠긴 의존성만 지원합니다.
 
@@ -18,9 +19,19 @@ Node 앱은 `process.env.PORT`를 사용하고 `0.0.0.0`에서 listen하며 `/`�
 app.listen(Number(process.env.PORT), '0.0.0.0');
 ```
 
-Vite 정적 프로젝트를 먼저 판정하고, 그 밖의 npm start 프로젝트를 NODE_SERVER 후보로 검사합니다. Next.js SSR/ISR, Python/FastAPI·Spring Boot/Java 사용자 앱, DB·Redis·WebSocket·background worker·cron, 파일 영속화, monorepo, pnpm/yarn, private Git, 사용자 Dockerfile은 지원하지 않습니다. 입력 코드를 자동 개조하지 않습니다. 웹훅/자동 HTTPS도 범위 밖입니다. 알려진 미지원 의존성은 검사 단계에서 거부하며, 실행 조건 위반은 health check 실패와 실제 로그로 설명합니다. 모든 프로그램의 동작을 정적으로 판별하는 것은 아닙니다.
+루트 Gradle Spring Boot는 SPRING_BOOT로, npm 프로젝트는 Vite를 먼저 판정하고 나머지 start 프로젝트를 NODE_SERVER로 검사합니다. Python/FastAPI, Maven, Next.js SSR/ISR, WebSocket, background worker/cron, 일반 monorepo/다중 Gradle 모듈, pnpm/yarn, private Git, webhook/자동 HTTPS는 지원하지 않습니다. Node 프리셋의 DB/Redis 제한은 유지됩니다. 사용자 Dockerfile/Compose는 실행하지 않습니다. 모든 프로그램의 동작을 정적으로 판별하는 것은 아닙니다.
 
-**GitHub 코드 주소는 실행 중인 사이트 주소가 아닙니다.** 플랫폼을 실행한 뒤 관리 화면의 공개 GitHub 입력란에 지원되는 앱 저장소 루트 주소를 넣어 배포하세요. `Gandalem/aurashop`처럼 Spring Boot·MySQL·Redis와 중첩 frontend가 있는 전체 저장소는 이번 Node P1 대상이 아닙니다.
+**GitHub 코드 주소는 실행 중인 사이트 주소가 아닙니다.** 플랫폼을 실행한 뒤 관리 화면의 공개 GitHub 입력란에 저장소 루트 주소를 넣어 배포하세요. 사용자 승인으로 `Gandalem/aurashop`의 Spring Boot·MySQL·Redis·frontend 구성 지원을 추가했습니다.
+
+## Spring Boot / aurashop
+
+`https://github.com/Gandalem/aurashop.git` 입력 → 소스 검사 → **SPRING_BOOT** → 배포하기. 최초 Java 의존성 다운로드와 DB 초기화에 몇 분이 필요할 수 있습니다. Docker/AWS/DB 암호/포트 입력은 필요하지 않습니다. `scripts/start`가 Gradle 9.4.1/JDK 21, Temurin 21.0.10 JRE, MySQL 8.4.8, Redis 7.4.8 고정 버전 이미지를 준비합니다. 배포는 사용한 실제 image ID를 보존합니다.
+
+기본 계약은 루트 단일 Spring Boot Gradle 프로젝트, `frontend/`의 잠긴 Vite, `/api/health`의 2xx, Spring 표준 datasource/Redis 환경 변수, `/api/*` 및 `/uploads/*`입니다. aurashop은 상품 조회 `/api/products`로 DB 연결까지 검사합니다. Maven 및 임의의 Java 구조 전체를 지원하는 것은 아닙니다.
+
+`aurashop-v1` 레시피는 배포용 복사본에서만 API/refresh 주소와 중복 `/api`를 정규화하고 업로드 URL을 상대 경로로 변경합니다. JWT 서명키는 프로젝트별로 생성·보존합니다. 원본 Git/SHA는 그대로 유지하고 변경 파일/레시피는 빌드 로그와 배포 settings에 기록합니다. 일반 Spring 프로젝트는 이 소스 보정을 받지 않습니다.
+
+MySQL·Redis·uploads는 프로젝트 전용 internal network와 영속 볼륨을 사용합니다. **Preview와 운영은 데이터를 공유하며 롤백은 코드만 되돌립니다.** 첫 배포만 Hibernate `update`, 이후에는 `validate`로 자동 스키마 변경을 막습니다. 수동 migration/DB snapshot 복원은 미지원이며 새 코드와 기존 DB의 호환성이 필요합니다. 재배포·서버 재시작으로 데이터가 삭제되지 않습니다. 프로젝트 삭제는 DB·Redis·업로드 데이터까지 영구 삭제합니다. 실패/취소 때 서비스 볼륨은 남겨 재시도할 수 있습니다.
 
 ## GitHub 주소로 배포하기
 

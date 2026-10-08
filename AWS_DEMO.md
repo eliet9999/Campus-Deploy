@@ -4,6 +4,8 @@
 
 ## 1. 운영자 준비
 
+Spring 확장에서는 Java runtime 외에 프로젝트별 MySQL/Redis 메모리와 영속 저장소가 추가됩니다. 기존 Node 시연 사양을 많은 Spring 프로젝트의 용량 보장으로 해석하지 마세요. GitHub 소스 배포는 로컬에서 검증하며 AWS 생성/변경은 실행하지 않습니다. 데이터/복구 계약은 [SPRING_BOOT.md](SPRING_BOOT.md)를 참조하세요.
+
 단일 **Ubuntu x86_64, 2 vCPU / 8GiB RAM / 40–60GiB EBS**를 시연 시작 사양으로 권장합니다. Docker Engine/Compose, Python 3.12+/venv를 준비합니다. 빌드 한 건이 최대 2GiB, runtime 하나가 최대 512MiB를 사용할 수 있으므로 프로젝트 수와 실측 부하에 따라 증설합니다. 무료 사용을 보장하지 않습니다. 1 CPU/2GiB는 builder 제한이며 VM 전체 최소 사양이 아닙니다.
 
 업로드 소스, npm cache, 산출물, Docker 이미지의 디스크 사용량을 고려합니다. EBS를 넉넉히 준비하고 실제 여유를 doctor로 확인합니다. VM에 불필요한 IAM 역할·AWS access key를 넣지 않습니다. IMDSv2 요구와 hop limit/호스트 egress 방화벽을 검토합니다. 현재 빌드 egress는 metadata 차단을 보장하지 않습니다. [AWS IMDS 안내](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html)
@@ -75,13 +77,14 @@ curl -I http://p-demo.PUBLIC_IP.sslip.io:8080/assets/ACTUAL_FILE.js
 |---|---|
 | Docker volume `campus-deploy_metadata` | SQLite DB/WAL, 프로젝트·배포·큐·포인터·전환·로그 |
 | `campus-deploy_artifacts` | 기존 STATIC/VITE 산출물 |
-| `campus-deploy_data` | 검증된 source snapshots, uploads/work |
-| Docker image store (data-root 및 사용하는 경우 `/var/lib/containerd`) | 플랫폼·Node base·배포별 immutable 이미지 |
+| `campus-deploy_data` | 검증된 source snapshots, uploads/work, `services/<project-id>.json` DB/Redis/JWT 자격증명 |
+| `<instance>-<project-id>-mysql-data`, `-redis-data`, `-uploads-data` | Spring 프로젝트별 MySQL·Redis·사용자 업로드 영속 데이터 |
+| Docker image store (data-root 및 사용하는 경우 `/var/lib/containerd`) | 플랫폼·Node/Java/Gradle/MySQL/Redis base·배포별 immutable 이미지 |
 | 설치 디렉터리 `.env`, `.secrets` | 도메인/instance 설정, 관리자 해시·서명키 |
 
 최초 설치 때 start.sh로 이미지를 준비한 뒤 systemd 설치 스크립트를 **한 번** 실행합니다. 스크립트는 `/etc/systemd/system/campus-deploy.service`를 설치·검사·enable하고 Docker 시작 이후 Compose를 실행합니다. 기존의 무관한 동명 unit은 덮어쓰지 않습니다. 부팅할 때 GitHub/npm을 다시 설치하지 않습니다.
 
-EC2 start 후 운영자는 추가 명령을 입력할 필요가 없습니다. Docker → systemd Compose → API/gateway/worker → lease 복구 → 보존 image로 없어진 Production runtime 생성 → `/` 2xx health check 순서로 복구됩니다. 정적 Production은 보존 artifact를 그대로 제공합니다. image/EBS 누락 등으로 복구에 실패하면 UNAVAILABLE/503으로 표시하며 정상 READY라고 표시하지 않습니다. 일시적인 서비스 시작·lease 만료·health 지연 동안 접속 중단은 발생할 수 있습니다.
+설계상 부팅 복구 순서는 Docker → systemd Compose → API/gateway/worker → lease 복구 → 보존 image로 Production runtime 생성 → HTTP health check입니다. Spring은 먼저 MySQL/Redis 컨테이너를 기존 볼륨/자격증명으로 복구하고 `/api/health`(aurashop `/api/products`)를 검사합니다. 정적 Production은 보존 artifact를 제공합니다. image/EBS/자격증명 누락 시 UNAVAILABLE/503이며 정상 READY라고 표시하지 않습니다. 시작·lease 만료·DB/HTTP health 지연 동안 접속 중단이 발생할 수 있습니다. 실제 EC2 부팅 검증은 미실행입니다.
 
 중단 당시 RUNNING 빌드/소스 검사/운영 전환은 실패로 마감하며 기존 운영 포인터는 보존합니다. QUEUED 작업은 계속 실행하고 미완료 삭제는 재시도합니다. EBS/SQLite/image store의 복구 일관성을 위해 OS 정상 종료와 보존 정책을 사용하고, 백업 시 worker를 포함한 플랫폼을 멈춘 일관된 snapshot을 계획합니다. 강제 정지·디스크 손실의 완전 복구는 보장하지 않습니다.
 

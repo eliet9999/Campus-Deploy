@@ -1,5 +1,9 @@
 # 구조와 불변식
 
+## SPRING_BOOT 확장
+
+2026-10-08 사용자 승인으로 Java 21/Gradle + frontend/ Vite + MySQL/Redis를 추가했습니다. 아래 P0/P1 불변식은 유지하며 Spring의 빌드, 서비스, 데이터 정책, 복구 경계는 [SPRING_BOOT.md](SPRING_BOOT.md)에 정의합니다. Spring 화면은 gateway의 정적 SPA 제공, `/api/*`와 `/uploads/*`는 같은 배포의 Java runtime으로 프록시됩니다.
+
 ```text
 Browser localhost:3000 → FastAPI + built React UI → SQLite WAL
                                              ↘ uploads (bounded stream)

@@ -1,6 +1,8 @@
 # 적용한 통제와 한계
 
-이 플랫폼은 **신뢰된 팀 소스의 통제된 시연**을 위한 STATIC/VITE_STATIC 및 P1 NODE_SERVER 구현입니다. 악성 코드에 대한 완전한 격리, 불특정 다수 SaaS, 무중단·CDN·Vercel 동등 성능을 보장하지 않습니다.
+이 플랫폼은 **신뢰된 팀 소스의 통제된 시연**을 위한 STATIC/VITE_STATIC, NODE_SERVER, SPRING_BOOT 구현입니다. 악성 코드에 대한 완전한 격리, 불특정 다수 SaaS, 무중단·CDN·Vercel 동등 성능을 보장하지 않습니다.
+
+Spring의 프로젝트 DB/Redis 격리, 영속 데이터/비밀 관리, 공유 Preview·코드 롤백 한계는 [SPRING_BOOT.md](SPRING_BOOT.md)를 참조하세요. Node 프리셋의 기존 DB/Redis 금지 계약은 유지합니다. Spring 지원이 사용자 앱의 권한/결제/비즈니스 로직 보안성을 보증하지는 않습니다.
 
 ## 적용한 통제
 

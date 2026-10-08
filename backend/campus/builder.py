@@ -39,13 +39,14 @@ def source_tar(source, target):
     target.seek(0)
 
 
-def build(worker, deployment, source, staging):
+def build(worker, deployment, source, staging, mode=None, environment=None):
     cfg, db, dep = worker.cfg, worker.db, deployment['id']
     client = docker.from_env(timeout=30)
     container = None
     work_volume = None
     try:
-        image = client.images.get(cfg.image)  # Operators pre-pull the exact image in start/setup.
+        java = mode == 'java'
+        image = client.images.get(cfg.java_build_image if java else cfg.image)
         snapshot = json.loads(deployment['settings'])
         snapshot.update({'image_id': image.id, 'image_digests': image.attrs.get('RepoDigests', []),
                          'timeout_seconds': cfg.timeout,
@@ -54,21 +55,25 @@ def build(worker, deployment, source, staging):
         with db.tx() as con:
             worker.guard(con)
             con.execute('UPDATE deployments SET settings=? WHERE id=?', (json.dumps(snapshot), dep))
-        node_server = deployment['preset'] == 'NODE_SERVER'
+        node_server = mode is None and deployment['preset'] == 'NODE_SERVER'
         command = NODE_COMMAND if node_server else COMMAND
-        db.log(dep, f'Docker image: {image.id}\nDigests: {snapshot["image_digests"]}\n$ node --version; npm --version; npm ci --no-audit --no-fund && npm run build' + (' --if-present' if node_server else '') + '\n')
+        if java:
+            from .spring import JAVA_COMMAND
+            command = JAVA_COMMAND
+        db.log(dep, f'Docker image: {image.id}\nDigests: {snapshot["image_digests"]}\n' + ('$ gradle --no-daemon bootJar -x test\n' if java else '$ npm ci --no-audit --no-fund && npm run build' + (' --if-present' if node_server else '') + '\n'))
         labels = {'campus.instance': cfg.instance, 'campus.kind': 'build', 'campus.project': deployment['project_id'], 'campus.deployment': dep}
         work_volume = client.volumes.create(name=f'campus-work-{dep}', driver='local',
             driver_opts={'type': 'tmpfs', 'device': 'tmpfs', 'o': 'size=1073741824,uid=1000,gid=1000,mode=0700,nosuid,nodev'},
             labels={**labels, 'campus.kind': 'build-work'})
         container = client.containers.create(
             image.id, command, name=f'campus-build-{dep}', user='1000:1000', working_dir='/work',
-            environment={'HOME': '/tmp', 'NPM_CONFIG_CACHE': '/tmp/npm-cache', 'CI': 'true', 'GIT_TERMINAL_PROMPT': '0', 'GIT_LFS_SKIP_SMUDGE': '1'},
+            environment={'HOME': '/tmp', 'NPM_CONFIG_CACHE': '/tmp/npm-cache', 'CI': 'true', 'GIT_TERMINAL_PROMPT': '0', 'GIT_LFS_SKIP_SMUDGE': '1',
+                         **({'GRADLE_USER_HOME': '/tmp/gradle', 'JAVA_TOOL_OPTIONS': '-XX:ActiveProcessorCount=2'} if java else {}), **(environment or {})},
             network_mode='bridge', read_only=True, cap_drop=['ALL'], security_opt=['no-new-privileges:true'],
             nano_cpus=1_000_000_000, mem_limit=2 * 1024**3, memswap_limit=2 * 1024**3,
             pids_limit=256, init=True,
             volumes={work_volume.name: {'bind': '/work', 'mode': 'rw'}},
-            tmpfs={'/tmp': 'rw,nosuid,nodev,size=268435456,uid=1000,gid=1000,mode=0700'},
+            tmpfs={'/tmp': 'rw,nosuid,nodev,size=1073741824,uid=1000,gid=1000,mode=0700' if java else 'rw,nosuid,nodev,size=268435456,uid=1000,gid=1000,mode=0700'},
             labels=labels,
             log_config=LogConfig(type=LogConfig.types.JSON, config={'max-size': '2m', 'max-file': '1'}),
         )
@@ -108,21 +113,27 @@ def build(worker, deployment, source, staging):
             con.execute('UPDATE deployments SET exit_code=? WHERE id=?', (code, dep))
         if code != 0:
             reason = ' (메모리 한도 초과)' if container.attrs['State'].get('OOMKilled') else ''
-            raise BuildFailed(f'npm 빌드 실패: exit {code}{reason}. 실제 로그를 확인하세요.', code)
+            raise BuildFailed(f'{"Gradle" if java else "npm"} 빌드 실패: exit {code}{reason}. 실제 로그를 확인하세요.', code)
         if log_errors:
             raise BuildFailed('빌드 로그 수집 실패: ' + str(log_errors[0]), code)
         # The runner stays alive while dist is copied; stopping would discard tmpfs.
-        stream, _ = container.get_archive('/work' if node_server else '/work/dist')
+        stream, _ = container.get_archive('/work/campus-runtime/app.jar' if java else '/work' if node_server else '/work/dist')
         with tempfile.TemporaryFile() as archive:
             total = 0
             for chunk in stream:
                 worker.check(dep)
                 total += len(chunk)
-                limit = cfg.runtime_archive_limit + cfg.runtime_file_limit * 2048 if node_server else cfg.artifact_limit + cfg.file_limit * 2048
+                limit = cfg.runtime_archive_limit + cfg.runtime_file_limit * 2048 if node_server or java else cfg.artifact_limit + cfg.file_limit * 2048
                 if total > limit:
                     raise BuildFailed('Docker archive 전송 크기 한도 초과')
                 archive.write(chunk)
             archive.seek(0)
+            if java:
+                from .spring import jar_archive
+                from .runtime_image import create_image
+                with tempfile.TemporaryFile() as jar:
+                    jar_archive(archive, jar, cfg)
+                    return create_image(worker, deployment, client.images.get(cfg.java_image).id, jar, client)
             if node_server:
                 from .runtime_image import create_image
                 return create_image(worker, deployment, image.id, archive, client)

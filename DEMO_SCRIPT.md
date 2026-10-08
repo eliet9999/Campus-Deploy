@@ -1,5 +1,14 @@
 # 10–15분 P0/P1 시연 순서
 
+## Spring Boot 추가 시연
+
+1. 최신 `scripts/start`로 Node/Gradle/Java/MySQL/Redis 이미지를 준비하고 관리 화면을 새로고침합니다.
+2. 새 프로젝트 → 공개 GitHub → `https://github.com/Gandalem/aurashop.git` → 소스 검사. **SPRING_BOOT**를 확인하고 배포합니다. 첫 Java 빌드/DB 준비에는 추가 시간이 필요합니다.
+3. BUILDING → STARTING → HEALTH_CHECK → READY 및 빌드/런타임 로그, 운영 사이트를 확인합니다. 프런트와 `/api/products`가 모두 실제 응답해야 합니다.
+4. 시험 계정을 만들고 로그인, 상품/장바구니 및 작은 이미지 업로드를 시험합니다. 회원가입 화면의 Daum 주소 선택은 외부 서비스가 필요합니다. 실제 결제는 수행하지 않습니다.
+5. 새 Preview → 운영 반영 → 이전 버전 코드 롤백. DB/Redis/uploads는 프로젝트 단위 공유이며 데이터의 과거 시점 복원이 아니라는 점을 설명합니다.
+6. 로컬 검증 자동화는 `scripts/spring_smoke.py`, frontend `npm run test:e2e`, `scripts/spring_lifecycle.py`. 마지막 검사는 Campus Deploy 중지/재기동과 시험 프로젝트 삭제를 포함하므로 시연 중 실행하지 않습니다. 자세한 데이터/복구 경계는 [SPRING_BOOT.md](SPRING_BOOT.md)를 참조하세요.
+
 ## 사전 리허설
 
 `scripts/start` → `scripts/doctor --browser`. samples ZIP을 준비합니다. 관리 화면 3000과 사이트 8080을 각각 브라우저로 엽니다. 실제 Node 24 이미지가 준비되어 있어야 합니다. 다운로드/rate limit 변동에 대비하여 먼저 ZIP 흐름을 시연합니다.

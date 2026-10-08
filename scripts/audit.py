@@ -43,14 +43,19 @@ print(json.dumps({'sqlite_integrity':'ok','deleted_artifacts_absent':True,'stagi
         row=json.loads(run('inspect',container_id))[0]
         assert not row['HostConfig']['PortBindings']
         assert row['Config']['User']=='1000:1000' and row['HostConfig']['ReadonlyRootfs']
-        assert row['HostConfig']['Memory']==512*1024**2 and row['HostConfig']['NanoCpus']==500_000_000
+        dep=c.call('GET','/api/deployments/'+row['Config']['Labels']['campus.deployment'])
+        spring=dep['preset']=='SPRING_BOOT'
+        assert row['HostConfig']['Memory']==(1024 if spring else 512)*1024**2 and row['HostConfig']['NanoCpus']==500_000_000
         assert row['HostConfig']['PidsLimit']==128 and row['HostConfig']['CapDrop']==['ALL']
         assert 'no-new-privileges:true' in row['HostConfig']['SecurityOpt']
         assert not any(m['Type']=='bind' for m in row['Mounts'])
         networks=list(row['NetworkSettings']['Networks'])
-        assert networks==['campus-deploy-local-runtime']
+        expected={'campus-deploy-local-runtime'}
+        if spring:
+            expected.add('campus-deploy-local-'+row['Config']['Labels']['campus.project']+'-data-net')
+        assert set(networks)==expected
         runtimes.append({'deployment':row['Config']['Labels']['campus.deployment'],'image':row['Image'],'state':row['State']['Status'],'published_ports':False})
-    result['node_runtimes']=runtimes
+    result['server_runtimes']=runtimes
     network=json.loads(run('network','inspect','campus-deploy-local-runtime'))[0]
     assert network['Internal']
     for service in ('api','worker'):

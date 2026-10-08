@@ -13,7 +13,7 @@ import tempfile
 from .safety import Rejected
 
 
-def image_context(archive, output, base, cfg):
+def image_context(archive, output, base, cfg, spring=False):
     if not re.fullmatch(r'sha256:[a-f0-9]{64}', base):
         raise Rejected('고정 Node base image ID가 필요합니다.')
     seen, links, entries, total = set(), set(), [], 0
@@ -57,12 +57,20 @@ def image_context(archive, output, base, cfg):
                 if parent in links:
                     raise Rejected('runtime archive symlink 하위 경로 금지')
                 parent = posixpath.dirname(parent)
-        if 'work/package.json' not in seen:
+        if spring and ('work/app.jar' not in seen or any(p != 'work/app.jar' and p != 'work' for p in seen)):
+            raise Rejected('Spring runtime archive에는 app.jar 하나만 있어야 합니다.')
+        if spring and (links or not source.getmember('work/app.jar').isfile()):
+            raise Rejected('Spring app.jar는 일반 파일이어야 합니다.')
+        if not spring and 'work/package.json' not in seen:
             raise Rejected('runtime package.json이 없습니다.')
         with tarfile.open(fileobj=output, mode='w') as dest:
             dockerfile = (f'FROM {base}\nWORKDIR /app\nCOPY --chown=1000:1000 app/ /app/\n'
                           'USER 1000:1000\nENV PORT=8080 NODE_ENV=production HOME=/tmp NPM_CONFIG_CACHE=/tmp/npm-cache\n'
                           'EXPOSE 8080\nCMD ["npm","start"]\n').encode()
+            if spring:
+                dockerfile = (f'FROM {base}\nWORKDIR /app\nCOPY --chown=1000:1000 app/ /app/\n'
+                              'USER 1000:1000\nENV HOME=/tmp SERVER_PORT=8080\n'
+                              'EXPOSE 8080\nCMD ["java","-jar","/app/app.jar"]\n').encode()
             info = tarfile.TarInfo('Dockerfile')
             info.size = len(dockerfile)
             dest.addfile(info, io.BytesIO(dockerfile))
@@ -86,7 +94,7 @@ def create_image(worker, row, base, archive, client):
     tag = f'campus-runtime:{row["id"]}-{row["sha"][:12]}'
     owned = labels(worker.cfg, row, 'runtime-image')
     with tempfile.TemporaryFile() as context:
-        validation = image_context(archive, context, base, worker.cfg)
+        validation = image_context(archive, context, base, worker.cfg, row['preset'] == 'SPRING_BOOT')
         worker.check(row['id'])
         worker.db.log(row['id'], '[image] 고정 Dockerfile로 이미지 생성 (사용자 Dockerfile/RUN 없음)\n')
         for event in client.api.build(fileobj=context, custom_context=True, tag=tag, decode=True,

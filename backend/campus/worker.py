@@ -119,18 +119,18 @@ class Worker:
 
     def recover(self):
         # Also collect orphaned resources from failures during cleanup after a job finished.
-        if self.db.one("SELECT 1 FROM deployments WHERE preset IN ('VITE_STATIC','NODE_SERVER') LIMIT 1"):
+        if self.db.one("SELECT 1 FROM deployments WHERE preset IN ('VITE_STATIC','NODE_SERVER','SPRING_BOOT') LIMIT 1"):
             self.cleanup_containers()
         stale = self.db.all("SELECT * FROM jobs WHERE status='RUNNING'")
         for job in stale:
             if job['kind'] == 'DEPLOY':
                 dep = self.db.one('SELECT * FROM deployments WHERE id=?', (job['subject'],))
-                if dep and dep['preset'] in ('VITE_STATIC', 'NODE_SERVER'):
+                if dep and dep['preset'] in ('VITE_STATIC', 'NODE_SERVER', 'SPRING_BOOT'):
                     self.cleanup_containers(dep=dep['id'])
                 if dep and dep['status'] not in ('READY', 'FAILED', 'CANCELED'):
                     self.fail(dep['id'], 'FAILED', '워커 재시작: 중단된 작업을 복구·정리했습니다. 운영 배포는 보존됩니다.')
                     self.clean_deployment(dep['id'])
-                if dep and dep['preset'] == 'NODE_SERVER' and dep['status'] != 'READY':
+                if dep and dep['preset'] in ('NODE_SERVER', 'SPRING_BOOT') and dep['status'] != 'READY':
                     self.runtime.remove(dep, images=True)
             elif job['kind'] == 'SWITCH':
                 with self.db.tx() as con:
@@ -279,15 +279,28 @@ class Worker:
                 with self.db.tx() as con:
                     self.guard(con)
                     con.execute('UPDATE deployments SET exit_code=0 WHERE id=?', (dep,))
+            elif row['preset'] == 'SPRING_BOOT':
+                from .spring import build_spring
+                validation = build_spring(self, row, source, staging)
             else:
                 from .builder import build
                 validation = build(self, row, source, staging)
-            if row['preset'] == 'NODE_SERVER':
+            if row['preset'] == 'SPRING_BOOT':
+                self.check(dep)
+                if published.exists():
+                    raise Rejected('불변 산출물 경로가 이미 존재합니다.')
+                staging.rename(published)
+                with self.db.tx() as con:
+                    self.guard(con)
+                    con.execute('UPDATE deployments SET artifact=? WHERE id=?', (dep, dep))
+            if row['preset'] in ('NODE_SERVER', 'SPRING_BOOT'):
                 row = self.db.one('SELECT * FROM deployments WHERE id=?', (dep,))
                 self.stage(dep, 'STARTING')
                 self.runtime.start(row)
                 self.stage(dep, 'HEALTH_CHECK')
                 validation['http_checks'] = [self.runtime.health(row)]
+                if row['preset'] == 'SPRING_BOOT':
+                    validation['http_checks'] += probe_artifact(self.cfg, dep)
             else:
                 self.stage(dep, 'PUBLISHING')
                 self.check(dep)
@@ -311,7 +324,7 @@ class Worker:
                     con.execute('UPDATE projects SET production_id=? WHERE id=?', (dep, row['project_id']))
                     con.execute('INSERT INTO transitions(project_id,previous_id,deployment_id,kind,created) VALUES(?,NULL,?,?,?)', (row['project_id'], dep, 'promote', time.time()))
             self.db.log(dep, '[READY] HTTP 검사 통과. 배포 준비 완료.\n')
-            if row['preset'] == 'NODE_SERVER':
+            if row['preset'] in ('NODE_SERVER', 'SPRING_BOOT'):
                 self.runtime.retain(row['project_id'])
         except LeaseLost:
             raise
@@ -323,7 +336,7 @@ class Worker:
             if not self.lost.is_set():
                 self.clean_deployment(dep)
                 current = self.db.one('SELECT * FROM deployments WHERE id=?', (dep,))
-                if current['preset'] == 'NODE_SERVER' and current['status'] != 'READY':
+                if current['preset'] in ('NODE_SERVER', 'SPRING_BOOT') and current['status'] != 'READY':
                     self.runtime.remove(current, images=True)
 
     def switch(self, operation):
@@ -367,13 +380,18 @@ class Worker:
     def delete(self, pid):
         self.check()
         rows = self.db.all('SELECT * FROM deployments WHERE project_id=?', (pid,))
-        if any(r['preset'] in ('VITE_STATIC', 'NODE_SERVER') for r in rows):
+        if any(r['preset'] in ('VITE_STATIC', 'NODE_SERVER', 'SPRING_BOOT') for r in rows):
             self.cleanup_containers(project=pid)
         for row in rows:
-            if row['preset'] == 'NODE_SERVER':
+            if row['preset'] in ('NODE_SERVER', 'SPRING_BOOT'):
                 self.runtime.remove(row, images=True)
             for area in ('artifacts', 'artifacts/.staging', 'work'):
                 remove_owned(self.cfg.data, self.cfg.data / area / row['id'])
+        if any(r['preset'] == 'SPRING_BOOT' for r in rows):
+            import docker
+            from .services import Services
+            with contextlib.closing(docker.from_env(timeout=30)) as client:
+                Services(self).delete(client, pid)
         source_ids = {r['source_id'] for r in rows}
         for sid in source_ids:
             referenced = self.db.one('''SELECT 1 AS found FROM deployments d JOIN projects p ON p.id=d.project_id

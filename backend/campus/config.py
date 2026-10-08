@@ -27,13 +27,18 @@ class Settings:
     health_timeout: int = field(default_factory=lambda: int(os.getenv('HEALTH_TIMEOUT_SECONDS', '30')))
     runtime_archive_limit: int = 500 * 1024**2
     runtime_file_limit: int = 100000
+    java_build_image: str = field(default_factory=lambda: os.getenv('JAVA_BUILD_IMAGE', 'gradle:9.4.1-jdk21'))
+    java_image: str = field(default_factory=lambda: os.getenv('JAVA_RUNTIME_IMAGE', 'eclipse-temurin:21.0.10_7-jre-jammy'))
+    mysql_image: str = field(default_factory=lambda: os.getenv('MYSQL_IMAGE', 'mysql:8.4.8'))
+    redis_image: str = field(default_factory=lambda: os.getenv('REDIS_IMAGE', 'redis:7.4.8-alpine'))
+    spring_health_timeout: int = 120
 
     @property
     def db(self):
         return self.data / 'metadata' / 'campus.sqlite3'
 
     def initialize(self):
-        for name in ('metadata', 'uploads', 'sources', 'work', 'artifacts', 'artifacts/.staging'):
+        for name in ('metadata', 'uploads', 'sources', 'work', 'artifacts', 'artifacts/.staging', 'services'):
             (self.data / name).mkdir(parents=True, exist_ok=True)
 
     def site_url(self, host):

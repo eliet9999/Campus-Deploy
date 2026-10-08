@@ -3,6 +3,7 @@ import datetime
 import re
 import time
 import threading
+import json
 
 import docker
 import httpx
@@ -78,6 +79,12 @@ class Runtime:
             image = client.images.get(row['runtime_image'])
             if any(image.labels.get(k) != v for k, v in labels(self.cfg, row, 'runtime-image').items()):
                 raise Rejected('보존 이미지 소유 정보 불일치')
+            spring = row['preset'] == 'SPRING_BOOT'
+            service_network, uploads, service_env = None, None, {}
+            if spring:
+                from .services import Services
+                self.state(row['id'], 'STARTING')
+                service_network, uploads, service_env = Services(self.worker).ensure(client, row)
             container = self.get(client, row)
             if container and (recreate or not container.attrs['State']['Running']):
                 self.capture(row, container)
@@ -87,21 +94,29 @@ class Runtime:
             if container is None:
                 self.state(row['id'], 'STARTING')
                 self.worker.check(row['id'])
-                container = client.containers.create(image.id, ['npm', 'start'], name=runtime_name(row['id']),
+                container = client.containers.create(image.id, ['java', '-jar', '/app/app.jar'] if spring else ['npm', 'start'], name=runtime_name(row['id']),
                     user='1000:1000', working_dir='/app', environment={'PORT': '8080', 'NODE_ENV': 'production',
-                        'HOME': '/tmp', 'NPM_CONFIG_CACHE': '/tmp/npm-cache'},
+                        'HOME': '/tmp', 'NPM_CONFIG_CACHE': '/tmp/npm-cache', **service_env},
                     network=self.cfg.runtime_network, read_only=True, cap_drop=['ALL'],
                     security_opt=['no-new-privileges:true'], nano_cpus=500_000_000,
-                    mem_limit=512 * 1024**2, memswap_limit=512 * 1024**2, pids_limit=128, init=True,
+                    mem_limit=(1024 if spring else 512) * 1024**2, memswap_limit=(1024 if spring else 512) * 1024**2, pids_limit=128, init=True,
+                    volumes={uploads: {'bind': '/app/uploads', 'mode': 'rw'}} if spring else None,
                     tmpfs={'/tmp': 'rw,nosuid,nodev,noexec,size=67108864,uid=1000,gid=1000,mode=0700'},
                     labels=labels(self.cfg, row), restart_policy={'Name': 'no'},
                     log_config=LogConfig(type='json-file', config={'max-size': '2m', 'max-file': '1'}))
+                if service_network:
+                    service_network.connect(container)
                 container.start()
                 self.db.log(row['id'], '[runtime] 보존 이미지에서 시작; PORT=8080; host port 없음\n', 'runtime')
             return container.id
 
     def health(self, row):
-        deadline, last = time.monotonic() + self.cfg.health_timeout, '응답 없음'
+        spring = row['preset'] == 'SPRING_BOOT'
+        timeout = self.cfg.spring_health_timeout if spring else self.cfg.health_timeout
+        path = json.loads(row['settings']).get('health_path', '/')
+        if path not in ('/', '/api/health', '/api/products'):
+            raise Rejected('관리 health path가 올바르지 않습니다.')
+        deadline, last = time.monotonic() + timeout, '응답 없음'
         self.state(row['id'], 'HEALTH_CHECK')
         host = f'd-{row["id"]}.{self.cfg.domain}' + (':' + self.cfg.port if self.cfg.port else '')
         with contextlib.closing(docker.from_env(timeout=10)) as client, httpx.Client(timeout=2, trust_env=False, follow_redirects=False) as http:
@@ -115,18 +130,18 @@ class Runtime:
                     raise Rejected(f'runtime 종료: exit {container.attrs["State"]["ExitCode"]}; runtime 로그를 확인하세요.')
                 try:
                     # Stream only response headers: an infinite body must not stall the worker.
-                    with http.stream('GET', self.cfg.gateway + '/', headers={'Host': host}) as response:
+                    with http.stream('GET', self.cfg.gateway + path, headers={'Host': host}) as response:
                         last = f'HTTP {response.status_code}'
                         if 200 <= response.status_code < 300:
                             container.reload()
                             if container.attrs['State']['Running']:
                                 self.state(row['id'], 'RUNNING')
-                                self.db.log(row['id'], '[health] GET / → ' + last + '\n', 'runtime')
-                                return {'path': '/', 'status': response.status_code, 'checked': time.time()}
+                                self.db.log(row['id'], '[health] GET ' + path + ' → ' + last + '\n', 'runtime')
+                                return {'path': path, 'status': response.status_code, 'checked': time.time()}
                 except httpx.HTTPError as exc:
                     last = type(exc).__name__
                 time.sleep(.5)
-        raise Rejected(f'HTTP health check 실패 ({self.cfg.health_timeout}초, {last}). npm start가 process.env.PORT로 0.0.0.0:8080에서 /에 2xx를 응답해야 합니다.')
+        raise Rejected(f'HTTP health check 실패 ({timeout}초, {last}). 서버가 0.0.0.0:8080에서 {path}에 2xx를 응답해야 합니다. 런타임 로그를 확인하세요.')
 
     def remove(self, row, images=False):
         self.worker.check()
@@ -145,7 +160,7 @@ class Runtime:
 
     def retain(self, pid):
         project = self.db.one('SELECT production_id FROM projects WHERE id=?', (pid,))
-        rows = self.db.all("SELECT * FROM deployments WHERE project_id=? AND preset='NODE_SERVER' AND status='READY' ORDER BY created DESC", (pid,))
+        rows = self.db.all("SELECT * FROM deployments WHERE project_id=? AND preset IN ('NODE_SERVER','SPRING_BOOT') AND status='READY' ORDER BY created DESC", (pid,))
         keep = {project['production_id']}
         if rows:
             keep.add(rows[0]['id'])
@@ -164,7 +179,7 @@ class Runtime:
         while not self.worker.stop.wait(2):
             try:
                 self.worker.check()
-                rows = self.db.all("SELECT d.* FROM deployments d JOIN projects p ON p.id=d.project_id WHERE d.preset='NODE_SERVER' AND d.runtime_state IN ('STARTING','HEALTH_CHECK','RUNNING','UNAVAILABLE') AND p.deleted=0")
+                rows = self.db.all("SELECT d.* FROM deployments d JOIN projects p ON p.id=d.project_id WHERE d.preset IN ('NODE_SERVER','SPRING_BOOT') AND d.runtime_state IN ('STARTING','HEALTH_CHECK','RUNNING','UNAVAILABLE') AND p.deleted=0")
                 with contextlib.closing(docker.from_env(timeout=5)) as client:
                     for row in rows:
                         try:
@@ -178,7 +193,7 @@ class Runtime:
                     return
 
     def reconcile(self, startup=False):
-        rows = self.db.all("SELECT d.*,p.production_id FROM deployments d JOIN projects p ON p.id=d.project_id WHERE d.preset='NODE_SERVER' AND d.status='READY' AND p.deleting=0 AND p.deleted=0")
+        rows = self.db.all("SELECT d.*,p.production_id FROM deployments d JOIN projects p ON p.id=d.project_id WHERE d.preset IN ('NODE_SERVER','SPRING_BOOT') AND d.status='READY' AND p.deleting=0 AND p.deleted=0")
         for row in rows:
             try:
                 with contextlib.closing(docker.from_env(timeout=10)) as client:
@@ -186,6 +201,9 @@ class Runtime:
                     if container:
                         self.capture(row, container)
                     running = bool(container and container.attrs['State']['Running'])
+                    if running and row['preset'] == 'SPRING_BOOT':
+                        from .services import Services
+                        running = Services(self.worker).available(client, row)
                 if row['production_id'] == row['id'] and (startup or not running or row['runtime_state'] != 'RUNNING'):
                     self.start(row)
                     self.health(row)

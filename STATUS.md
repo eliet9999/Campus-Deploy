@@ -1,5 +1,12 @@
 # 진행 상황
 
+## Spring Boot 확장 (2026-10-08, 사용자 승인)
+
+- SPRING_BOOT: 루트 Gradle/Java 21 + frontend/ Vite/npm lockfile, 고정 Java 빌드/이미지, 프로젝트별 MySQL·Redis·uploads 영속 저장을 추가했습니다. 사용자 Dockerfile/Compose는 실행하지 않습니다.
+- aurashop-v1 배포 복사본 보정: 같은 origin API/refresh 및 업로드 주소, 혼용 API 접두사, 영속 JWT key. 원본 SHA와 보정 목록을 기록합니다.
+- Preview/Production·health·image rollback·startup recovery에 Spring을 통합했습니다. DB는 프로젝트 단위 공유, 코드만 롤백, 최초 이후 schema validate입니다. 데이터 snapshot/자동 migration은 미지원입니다.
+- 기존 회귀와 Spring 검사 포함 pytest 94개 PASS. 실제 Spring 운영 전환·image 롤백·컨테이너 누락 복구에서 DB/Redis/uploads/세션 보존 및 프로젝트별 삭제 격리를 확인했습니다. 검증 상세는 VERIFICATION.md에 기록합니다.
+
 ## P1 (2026-10-08, Asia/Seoul)
 
 - GitHub 입력 개선: 새 프로젝트의 기본 탭을 공개 GitHub로 변경하고 저장소 URL에서 이름/고유 slug를 자동 입력합니다. 기존 GitHub 수집·지원 검사 API를 그대로 사용하며 ZIP은 별도 탭에서 유지합니다. 공개 GitHub 주소만으로 실제 HTTP 200까지 확인했고 Chromium 전체 4개가 통과했습니다. aurashop은 실제 Git 재검사에서도 Spring Boot/Java 미지원으로 거부되었습니다.
