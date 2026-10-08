@@ -12,6 +12,7 @@ import time
 import docker
 
 from .safety import Rejected
+from .spring_plan import service_plan, VITE_PRESETS
 
 
 def project_id(value):
@@ -37,25 +38,36 @@ class Services:
             raise Rejected('서비스 자원 소유권 충돌: ' + kind)
         return obj
 
-    def credentials(self, pid, client):
+    def credentials(self, pid, client, enabled=None):
+        enabled = enabled if enabled is not None else ('mysql', 'redis')
         path = self.cfg.data / 'services' / (project_id(pid) + '.json')
         if not path.exists():
-            try:
-                self.owned(client.volumes.get(self.name(pid, 'mysql-data')), pid, 'mysql-data')
-            except docker.errors.NotFound:
-                pass
-            else:
-                raise Rejected('기존 DB 볼륨의 서비스 자격증명 파일이 없습니다. 백업에서 복원하세요. 새 암호로 덮어쓰지 않습니다.')
+            for kind in ('mysql-data', 'redis-data', 'uploads-data'):
+                try:
+                    self.owned(client.volumes.get(self.name(pid, kind)), pid, kind)
+                except docker.errors.NotFound:
+                    pass
+                else:
+                    raise Rejected('기존 DB/저장소 볼륨의 서비스 자격증명 파일이 없습니다. 백업에서 복원하세요. 새 암호로 덮어쓰지 않습니다.')
             values = {'mysql': secrets.token_hex(32), 'root': secrets.token_hex(32), 'redis': secrets.token_hex(32),
-                      'jwt': base64.b64encode(secrets.token_bytes(32)).decode(),
-                      'mysql_image': client.images.get(self.cfg.mysql_image).id,
-                      'redis_image': client.images.get(self.cfg.redis_image).id}
+                      'jwt': base64.b64encode(secrets.token_bytes(32)).decode()}
             # The single lease-holding worker creates credentials once. Never replace on restart.
             temporary = path.with_suffix('.tmp')
             temporary.write_text(json.dumps(values), 'utf-8')
             temporary.chmod(0o600)
             temporary.replace(path)
-        return json.loads(path.read_text('utf-8'))
+        values = json.loads(path.read_text('utf-8'))
+        changed = False
+        for name in enabled:
+            if name in ('mysql', 'redis') and name + '_image' not in values:
+                values[name + '_image'] = client.images.get(getattr(self.cfg, name + '_image')).id
+                changed = True
+        if changed:
+            temporary = path.with_suffix('.tmp')
+            temporary.write_text(json.dumps(values), 'utf-8')
+            temporary.chmod(0o600)
+            temporary.replace(path)
+        return values
 
     def volume(self, client, row, kind):
         pid = row['project_id']
@@ -122,39 +134,54 @@ class Services:
 
     def ensure(self, client, row):
         pid = row['project_id']
-        credentials = self.credentials(pid, client)
-        network = self.network(client, pid)
-        volumes = {kind: self.volume(client, row, kind + '-data') for kind in ('mysql', 'redis', 'uploads')}
-        mysql = self.service(client, row, 'mysql', credentials['mysql_image'], volumes['mysql'],
+        options = service_plan(row)
+        enabled = [k for k, v in options.items() if v['enabled']]
+        environment = {'SERVER_PORT': '8080', 'SERVER_ADDRESS': '0.0.0.0', 'SERVER_FORWARD_HEADERS_STRATEGY': 'framework',
+                       'HOME': '/tmp', 'JAVA_TOOL_OPTIONS': '-XX:MaxRAMPercentage=65 -XX:ActiveProcessorCount=2'}
+        if not enabled:
+            return None, None, environment
+        credentials = self.credentials(pid, client, enabled)
+        network = self.network(client, pid) if options['mysql']['enabled'] or options['redis']['enabled'] else None
+        volumes = {kind: self.volume(client, row, kind + '-data') for kind in ('mysql', 'redis') if options[kind]['enabled']}
+        if options['storage']['enabled']:
+            volumes['uploads'] = self.volume(client, row, 'uploads-data')
+        containers = {}
+        if options['mysql']['enabled']:
+            containers['mysql'] = self.service(client, row, 'mysql', credentials['mysql_image'], volumes['mysql'],
             {'MYSQL_DATABASE': 'campus', 'MYSQL_USER': 'campus', 'MYSQL_PASSWORD': credentials['mysql'],
              'MYSQL_ROOT_PASSWORD': credentials['root']},
             ['mysqld', '--innodb-buffer-pool-size=128M', '--max-connections=40', '--mysqlx=OFF'], '/var/lib/mysql', 768*1024**2)
-        redis = self.service(client, row, 'redis', credentials['redis_image'], volumes['redis'],
+        if options['redis']['enabled']:
+            containers['redis'] = self.service(client, row, 'redis', credentials['redis_image'], volumes['redis'],
             {'REDIS_PASSWORD': credentials['redis']},
             ['sh', '-c', 'exec redis-server --appendonly yes --maxmemory 96mb --maxmemory-policy noeviction --requirepass "$REDIS_PASSWORD"'], '/data', 192*1024**2)
         deadline = time.monotonic() + 120
-        while not (self.ready(mysql, 'mysql') and self.ready(redis, 'redis')):
+        while not all(self.ready(container, kind) for kind, container in containers.items()):
             self.worker.check(row['id'])
             if time.monotonic() > deadline:
                 raise Rejected('MySQL/Redis 준비 timeout. 기존 영속 데이터는 보존됩니다.')
             time.sleep(1)
-        self.worker.db.log(row['id'], '[services] MySQL/Redis 준비 완료; 프로젝트 전용 network/영속 볼륨, 공개 포트 없음\n', 'runtime')
+        self.worker.db.log(row['id'], '[services] ' + ', '.join(enabled) + ' 준비 완료; 프로젝트 전용 network/영속 볼륨, 공개 포트 없음\n', 'runtime')
         production = self.worker.db.one('SELECT production_id FROM projects WHERE id=?', (pid,))
         # Subsequent builds cannot automatically migrate an existing production schema.
-        ddl = 'validate' if production['production_id'] else 'update'
-        environment = {
-            'SERVER_PORT': '8080', 'SERVER_ADDRESS': '0.0.0.0', 'SERVER_FORWARD_HEADERS_STRATEGY': 'framework',
+        ddl = 'update' if row['preset'] in VITE_PRESETS and not production['production_id'] else 'validate'
+        if options['mysql']['enabled']:
+            environment.update({
             'SPRING_DATASOURCE_URL': f'jdbc:mysql://{self.name(pid,"mysql")}:3306/campus?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC',
             'SPRING_DATASOURCE_USERNAME': 'campus', 'SPRING_DATASOURCE_PASSWORD': credentials['mysql'],
-            'SPRING_JPA_HIBERNATE_DDL_AUTO': ddl, 'SPRING_JPA_SHOW_SQL': 'false',
+            'SPRING_JPA_HIBERNATE_DDL_AUTO': ddl, 'SPRING_JPA_SHOW_SQL': 'false'})
+        if options['redis']['enabled']:
+            environment.update({
             'SPRING_DATA_REDIS_HOST': self.name(pid, 'redis'), 'SPRING_DATA_REDIS_PORT': '6379',
-            'SPRING_DATA_REDIS_PASSWORD': credentials['redis'], 'CAMPUS_JWT_SECRET': credentials['jwt'],
-            'HOME': '/tmp', 'JAVA_TOOL_OPTIONS': '-XX:MaxRAMPercentage=65 -XX:ActiveProcessorCount=2',
-        }
-        return network, volumes['uploads'], environment
+            'SPRING_DATA_REDIS_PASSWORD': credentials['redis']})
+        if row['preset'] in VITE_PRESETS:
+            environment['CAMPUS_JWT_SECRET'] = credentials['jwt']
+        return network, volumes.get('uploads'), environment
 
     def available(self, client, row):
         for kind in ('mysql', 'redis'):
+            if not service_plan(row)[kind]['enabled']:
+                continue
             try:
                 container = self.owned(client.containers.get(self.name(row['project_id'], kind)), row['project_id'], kind)
                 if not self.ready(container, kind):

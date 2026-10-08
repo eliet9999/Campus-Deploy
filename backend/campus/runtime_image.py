@@ -13,7 +13,7 @@ import tempfile
 from .safety import Rejected
 
 
-def image_context(archive, output, base, cfg, spring=False):
+def image_context(archive, output, base, cfg, spring=False, image_labels=None):
     if not re.fullmatch(r'sha256:[a-f0-9]{64}', base):
         raise Rejected('고정 Node base image ID가 필요합니다.')
     seen, links, entries, total = set(), set(), [], 0
@@ -71,6 +71,9 @@ def image_context(archive, output, base, cfg, spring=False):
                 dockerfile = (f'FROM {base}\nWORKDIR /app\nCOPY --chown=1000:1000 app/ /app/\n'
                               'USER 1000:1000\nENV HOME=/tmp SERVER_PORT=8080\n'
                               'EXPOSE 8080\nCMD ["java","-jar","/app/app.jar"]\n').encode()
+            if image_labels:
+                # One LABEL instruction prevents Docker from retaining partial ownership configs.
+                dockerfile += ('LABEL ' + ' '.join(k + '=' + json.dumps(v) for k, v in image_labels.items()) + '\n').encode()
             info = tarfile.TarInfo('Dockerfile')
             info.size = len(dockerfile)
             dest.addfile(info, io.BytesIO(dockerfile))
@@ -94,11 +97,12 @@ def create_image(worker, row, base, archive, client):
     tag = f'campus-runtime:{row["id"]}-{row["sha"][:12]}'
     owned = labels(worker.cfg, row, 'runtime-image')
     with tempfile.TemporaryFile() as context:
-        validation = image_context(archive, context, base, worker.cfg, row['preset'] == 'SPRING_BOOT')
+        from .spring_plan import SPRING_PRESETS
+        validation = image_context(archive, context, base, worker.cfg, row['preset'] in SPRING_PRESETS, image_labels=owned)
         worker.check(row['id'])
         worker.db.log(row['id'], '[image] 고정 Dockerfile로 이미지 생성 (사용자 Dockerfile/RUN 없음)\n')
         for event in client.api.build(fileobj=context, custom_context=True, tag=tag, decode=True,
-                                     rm=True, forcerm=True, pull=False, network_mode='none', labels=owned):
+                                     rm=True, forcerm=True, pull=False, network_mode='none'):
             worker.check(row['id'])
             if event.get('error'):
                 raise Rejected('runtime image 생성 실패: ' + event['error'])

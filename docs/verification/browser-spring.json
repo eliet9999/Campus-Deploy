@@ -1,6 +1,6 @@
 {
-  "url": "http://p-aurashop-b4cfc1.localhost:8080",
-  "projectId": "5b3017430a5b4f5ca90017742aa2e029",
+  "url": "http://p-aurashop-f91ad8.localhost:8080",
+  "projectId": "ddceaed46f634ab1b1dba301c69a67aa",
   "source": "GitHub URL only",
   "checks": [
     "signup page + real API",
@@ -17,7 +17,7 @@
   ],
   "application": {
     "upload": 200,
-    "imageUrl": "/uploads/1bb624d4-16a4-4fa2-b410-9ab0b5a9233e_campus-test.png",
+    "imageUrl": "/uploads/142aaf77-7312-4167-80f3-fce6f921c57e_campus-test.png",
     "product": 200,
     "productId": 1,
     "cart": 200,

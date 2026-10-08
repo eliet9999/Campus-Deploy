@@ -1,6 +1,15 @@
 # 진행 상황
 
-## Spring Boot 확장 (2026-10-08, 사용자 승인)
+## 현재 완료: Spring Boot 일반화 (2026-10-08)
+
+- `SPRING_BOOT_JAR`를 추가했습니다. Java 21 단일 모듈 Gradle/Maven Wrapper 앱은 frontend 없이 실행할 수 있습니다. 기존 프런트 결합 경로는 `SPRING_BOOT_VITE`로 분리하고 저장된 `SPRING_BOOT` 배포도 유지합니다.
+- 소스 facts와 배포 plan을 분리하고 선택 `campus-deploy.yaml`로 root/buildTool/artifact/health/서비스를 확정합니다. 일반 JAR 소스를 수정하지 않고 의존성 hint만으로 DB를 만들지 않습니다.
+- 선택 MySQL/Redis/storage, HTTP health 정책, 불변 이미지 롤백·재시작 복구, 프로젝트 단위 데이터 보존·삭제를 구현했습니다. Preview/Production 서비스 공유와 코드 롤백의 한계를 UI·문서에 표시합니다.
+- 변경 전 **pytest 94 / Chromium 5**, 변경 후 **pytest 154 / Chromium 6** 통과. 일반 JAR 수명주기 11개, 선택 서비스 4개, 기존 aurashop 수명주기 7개 실제 검사를 통과했습니다. 원인·수정·검증 범위는 [VERIFICATION.md](VERIFICATION.md)에 기록합니다.
+- 실행 JAR 복수 산출물/Wrapper 누락/멀티모듈 실패 샘플을 제공하며 정상 Gradle API/Maven API/JAR 웹/서비스 샘플도 포함합니다.
+- 기능·API·기술·보안 경계·실행 방법은 [FEATURE_SPEC.md](FEATURE_SPEC.md)에 정리했습니다. 아래 내용은 이전 단계의 이력입니다. 실제 AWS/EC2/Ubuntu 부팅 검증은 수행하지 않았습니다.
+
+## 이전 Spring Boot 확장 (2026-10-08, 사용자 승인)
 
 - SPRING_BOOT: 루트 Gradle/Java 21 + frontend/ Vite/npm lockfile, 고정 Java 빌드/이미지, 프로젝트별 MySQL·Redis·uploads 영속 저장을 추가했습니다. 사용자 Dockerfile/Compose는 실행하지 않습니다.
 - aurashop-v1 배포 복사본 보정: 같은 origin API/refresh 및 업로드 주소, 혼용 API 접두사, 영속 JWT key. 원본 SHA와 보정 목록을 기록합니다.

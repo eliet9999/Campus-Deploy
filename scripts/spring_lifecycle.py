@@ -109,6 +109,7 @@ def main():
     labels=['campus.instance=campus-deploy-local','campus.project='+other_pid]
     assert not engine.containers.list(all=True,filters={'label':labels})
     assert not engine.volumes.list(filters={'label':labels}) and not engine.networks.list(filters={'label':labels})
+    assert not engine.images.list(all=True,filters={'label':labels})
     for image in other_images:
         try:engine.images.get(image)
         except docker.errors.ImageNotFound:pass

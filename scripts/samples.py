@@ -1,5 +1,6 @@
 """Generate ZIP inputs from repository samples; never special-case sample IDs in the backend."""
 from pathlib import Path
+import json
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -7,6 +8,9 @@ ROOT = Path(__file__).resolve().parents[1]
 def main():
     for sample in sorted((ROOT / 'samples').iterdir()):
         if not sample.is_dir():
+            continue
+        if (sample / 'source.json').is_file() and json.loads((sample / 'source.json').read_text('utf-8')).get('kind') == 'GIT':
+            print(sample.name, 'Git URL fixture (no ZIP)')
             continue
         archive = sample.with_suffix('.zip')
         with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as z:

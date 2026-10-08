@@ -109,14 +109,14 @@ def create_app(settings=None):
             row[key] = json.loads(row[key]) if row[key] else None
         row['preview_url'] = cfg.site_url('d-' + row['id'])
         row['deployment_status'] = row['status']
-        if row['status'] == 'READY' and row['preset'] in ('NODE_SERVER', 'SPRING_BOOT') and row['runtime_state'] == 'UNAVAILABLE':
+        if row['status'] == 'READY' and row['preset'] in ('NODE_SERVER', 'SPRING_BOOT', 'SPRING_BOOT_JAR', 'SPRING_BOOT_VITE') and row['runtime_state'] == 'UNAVAILABLE':
             row['status'] = 'UNAVAILABLE'
         return row
 
     def present_project(row):
         row['production_url'] = cfg.site_url('p-' + row['slug'])
         prod = db.one('SELECT status,preset,runtime_state,runtime_error FROM deployments WHERE id=?', (row['production_id'],)) if row['production_id'] else None
-        row['production_health'] = (prod['runtime_state'] if prod['preset'] in ('NODE_SERVER', 'SPRING_BOOT') else prod['status']) if prod else None
+        row['production_health'] = (prod['runtime_state'] if prod['preset'] in ('NODE_SERVER', 'SPRING_BOOT', 'SPRING_BOOT_JAR', 'SPRING_BOOT_VITE') else prod['status']) if prod else None
         row['production_error'] = prod['runtime_error'] if prod else None
         return row
 
@@ -196,11 +196,13 @@ def create_app(settings=None):
         row = db.one('SELECT * FROM sources WHERE id=?', (sid,))
         if not row:
             raise HTTPException(404)
+        for key in ('analysis', 'plan'):
+            row[key] = json.loads(row[key]) if row.get(key) else None
         return row
 
     @app.get('/api/projects')
     def projects():
-        rows = db.all('''SELECT p.*, (SELECT CASE WHEN status='READY' AND preset IN ('NODE_SERVER','SPRING_BOOT') AND runtime_state='UNAVAILABLE' THEN 'UNAVAILABLE' ELSE status END FROM deployments d WHERE d.project_id=p.id ORDER BY created DESC LIMIT 1) latest_status,
+        rows = db.all('''SELECT p.*, (SELECT CASE WHEN status='READY' AND preset IN ('NODE_SERVER','SPRING_BOOT','SPRING_BOOT_JAR','SPRING_BOOT_VITE') AND runtime_state='UNAVAILABLE' THEN 'UNAVAILABLE' ELSE status END FROM deployments d WHERE d.project_id=p.id ORDER BY created DESC LIMIT 1) latest_status,
           (SELECT created FROM deployments d WHERE d.project_id=p.id ORDER BY created DESC LIMIT 1) latest_at
           FROM projects p WHERE deleted=0 ORDER BY created DESC''')
         return [present_project(row) for row in rows]
@@ -226,7 +228,7 @@ def create_app(settings=None):
         if not row:
             raise HTTPException(404)
         row = present_project(row)
-        row['source'] = db.one('SELECT * FROM sources WHERE id=?', (row['source_id'],))
+        row['source'] = get_source(row['source_id'])
         row['deployments'] = [present_deployment(d) for d in db.all('SELECT * FROM deployments WHERE project_id=? ORDER BY created DESC', (pid,))]
         row['transitions'] = db.all('SELECT * FROM transitions WHERE project_id=? ORDER BY id DESC', (pid,))
         row['operations'] = db.all('SELECT * FROM operations WHERE project_id=? ORDER BY created DESC LIMIT 20', (pid,))
@@ -289,7 +291,7 @@ def create_app(settings=None):
                 raise HTTPException(409, '정상 산출물이 있는 READY 배포만 운영할 수 있습니다.')
             if body.kind == 'rollback' and not con.execute('SELECT 1 FROM transitions WHERE project_id=? AND deployment_id=?', (pid, body.deployment_id)).fetchone():
                 raise HTTPException(409, '과거 운영에 사용된 배포만 롤백할 수 있습니다.')
-            if dep['preset'] in ('NODE_SERVER', 'SPRING_BOOT'):
+            if dep['preset'] in ('NODE_SERVER', 'SPRING_BOOT', 'SPRING_BOOT_JAR', 'SPRING_BOOT_VITE'):
                 if not dep['runtime_image']:
                     raise HTTPException(409, '보존된 runtime image가 없습니다.')
                 if con.execute("SELECT 1 FROM operations WHERE project_id=? AND status IN ('QUEUED','HEALTH_CHECK')", (pid,)).fetchone():

@@ -1,6 +1,41 @@
 # 실검증 보고서
 
-## Spring Boot 확장 — 2026-10-08
+## 현재 결과: Spring Boot 일반화 — 2026-10-08
+
+Windows + Docker Desktop Linux/amd64 + 실제 Chromium에서 검증했습니다. **AWS/EC2, Ubuntu systemd boot, 호스트 강제 재부팅은 실행하지 않았습니다.** 아래 이전 단계의 기록은 이력이며 현재 기능 명칭·범위는 [FEATURE_SPEC.md](FEATURE_SPEC.md)와 [SPRING_BOOT.md](SPRING_BOOT.md)가 기준입니다.
+
+| 검사 | 실제 결과 |
+|---|---|
+| 변경 전 기준선 | pytest **94 passed**, Chromium **5 passed** |
+| 최종 자동 회귀 | pytest **154 passed**, 실패/오류/skip 0, 17.75초; 기존 TestClient deprecation warning 1개 |
+| 관리 UI | TypeScript 검사 + Vite production build PASS |
+| 전체 Chromium | **6 passed**, 실패/skip/flaky 0, 약 3.8분: GitHub STATIC / ZIP STATIC / Vite / Node / JAR 웹 / GitHub aurashop |
+| 일반 JAR 실제 수명주기 | **11개 PASS**: Gradle·Maven Wrapper 빌드, API·내장 웹, promote/이미지 rollback, 실패 보존, 재시작 복구, 소유 자원 삭제 |
+| 일반 JAR 선택 서비스 | **4개 PASS**: MySQL/Redis/storage 실제 쓰기·읽기, 실패 Preview 보존, 컨테이너 재생성 후 데이터/이미지/로그 보존, 해당 프로젝트 삭제 |
+| 기존 aurashop 수명주기 | **7개 PASS**: 기존 `SPRING_BOOT` 저장 배포의 DB/세션/업로드, 새 Preview, promote/rollback, Compose 및 누락 runtime/MySQL/Redis 복구, 삭제 격리 |
+| 최종 audit/doctor | SQLite integrity ok, work/staging 비어 있음, 잔존 builder/작업 볼륨 0, 서버 runtime 32개 격리 PASS. Chromium 서브도메인 접속 PASS, OS DNS 11001 주의 유지 |
+
+최종 임시 폴더 정리 보강 후 154개 pytest, 실제 worker startup/audit 및 JAR 브라우저 버튼을 확인했습니다. 전체 6개 E2E는 이 정리 보강 직전에 통과했습니다.
+
+원래 오류는 모든 Spring Boot 소스에 aurashop형 frontend/Vite 조건을 적용한 데 있었습니다. 현재는 facts 분석 후 plan을 확정하며 일반 `SPRING_BOOT_JAR`에는 프런트가 필요하지 않습니다. Gradle/Maven API를 실제 URL에서 호출했고, JAR 내 HTML/JavaScript를 브라우저로 열어 API 버튼을 눌렀습니다. server-rendered 템플릿 앱을 별도로 검증한 것은 아닙니다.
+
+실제 JAR 검사에는 Wrapper 누락·멀티모듈 사전 거절, 두 실행 JAR 생성 시 실패, manifest artifact로 하나를 지정한 성공이 포함됩니다. API-only 기본 `/`의 404는 HTTP 도달성만 의미하며 별도의 `/api/hello` 200도 확인했습니다. 명시 health 경로는 strict 2xx입니다. 소스 자동 보정은 일반 JAR에 적용하지 않았고 선택 서비스 샘플의 adapter는 none입니다.
+
+v1 운영 중 v2 Preview가 운영 포인터를 유지하고, promote 후 과거 image ID로 rollback하는 동안 빌드 로그가 변하지 않는 것을 확인했습니다. 실제 Java 프로세스 실패가 기존 운영과 DB/Redis/storage 값을 보존했습니다. Compose stop/start 후 해당 runtime/서비스 컨테이너만 제거해 보존 image/volume/자격증명으로 복원했습니다. EC2나 Docker daemon 재부팅과는 다릅니다.
+
+기존 aurashop GitHub 배포는 새 `SPRING_BOOT_VITE`로 검사·빌드하고 가입 API, 로그인 UI, 상품/장바구니, Redis refresh, 업로드 이미지 픽셀을 검증했습니다. 기존 `SPRING_BOOT` 배포는 수명주기 검사로 호환성을 확인했습니다. 외부 Daum 주소 선택과 결제는 미검증이며 aurashop-v1 소스 패턴 호환 처리는 별도 모듈에 남습니다.
+
+이번 개발에서 발견하고 수정한 실패:
+
+- Maven Wrapper가 실행 제한된 `/tmp`에 Maven 배포본을 내려받아 exit 126으로 실패했습니다. Wrapper 다운로드 위치를 제한된 일회성 작업 볼륨으로 분리한 뒤 실제 Maven 배포가 성공했습니다.
+- Docker의 여러 LABEL 레이어 때문에 일부 소유 라벨만 붙은 중간 이미지가 남았습니다. 소유 라벨을 한 LABEL에 생성하고 엄격한 project 범위로 중간 이미지까지 정리하도록 수정했습니다. 성공했던 build/rollback/recovery 증거는 보존하고 실패했던 cleanup을 다시 실행했습니다. `spring-jar.json`은 이 경과를 명시하며 한 번의 무중단 성공 실행으로 표현하지 않습니다. 다른 container 44개/image 277개/volume 43개 보존을 대조했습니다.
+- 최종 감사에서 완료된 시험 배포의 임시 작업 폴더 1개가 발견됐습니다. startup에서 terminal 배포의 work/staging을 정리하되 READY 산출물·소스·대기 작업은 보존하도록 보강하고 경계 회귀 검사를 추가했습니다.
+
+재현 명령은 `python -m pytest -q`, frontend의 `npm run build`/`npm run test:e2e`, `python scripts/spring_jar_smoke.py`, `python scripts/spring_jar_services.py`, `python scripts/spring_lifecycle.py`, `python scripts/audit.py`입니다. 소스 샘플 ZIP은 `python scripts/samples.py`로 만듭니다. 수명주기 스크립트는 시험 프로젝트를 생성·삭제하고 이 설치의 Compose를 재시작하므로 개발/시연 환경에서 사용합니다.
+
+[선별 증적](docs/verification/README.md)과 [기계 판독 요약](docs/verification/summary.json)에 기준선과 최종 결과를 기록합니다. 사설 Git, 멀티모듈, WAR, 임의 Java 앱, Maven+별도 Vite, 사용자 Dockerfile/Compose, Python 앱, WebSocket은 미지원입니다. Preview/Production DB 공유, 코드 rollback≠DB 복원, 자동 백업/마이그레이션 부재와 신뢰된 팀용 격리 한계는 변경되지 않습니다.
+
+## 이전 Spring Boot 확장 — 2026-10-08
 
 사용자 승인으로 Node 이후 Spring Boot·MySQL·Redis를 추가했습니다. 기존 P0/P1 기록은 아래에 보존합니다. 실행 환경은 동일한 로컬 Windows + Docker Desktop Linux이며 AWS/Ubuntu 실제 부팅은 미실행입니다.
 

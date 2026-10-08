@@ -27,7 +27,7 @@ def spring_source(root):
 def test_gradle_frontend_detection_ignores_submitted_dockerfile(tmp_path):
     spring_source(tmp_path)
     (tmp_path / 'Dockerfile').write_text('RUN should-never-execute')
-    assert detect(tmp_path) == 'SPRING_BOOT'
+    assert detect(tmp_path) == 'SPRING_BOOT_VITE'
     assert inspect_spring(tmp_path)['health_path'] == '/api/health'
 
 

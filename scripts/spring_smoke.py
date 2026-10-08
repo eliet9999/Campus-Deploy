@@ -37,7 +37,7 @@ def main():
 def create(client):
     source = client.call('POST', '/api/sources/git', json={'url': 'https://github.com/Gandalem/aurashop.git'})
     source = client.wait('/api/sources/' + source['id'])
-    assert source['status'] == 'READY' and source['preset'] == 'SPRING_BOOT', source.get('error')
+    assert source['status'] == 'READY' and source['preset'] == 'SPRING_BOOT_VITE', source.get('error')
     project = client.call('POST', '/api/projects', json={
         'name': 'Aura Shop · Spring Boot', 'slug': 'aurashop-' + str(int(time.time())), 'source_id': source['id']})
     result = {'repository': source['locator'], 'source_sha': source['sha'], 'source_id': source['id'],

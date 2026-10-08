@@ -1,0 +1,46 @@
+{
+  "checks": [
+    "missing wrapper and multi-module rejected before build",
+    "spring-gradle-api: real Wrapper build, executable JAR image, HTTP API, restricted runtime, no services",
+    "API-only root 404 is explicitly HTTP-reachable; actual /api/hello 200 verified separately",
+    "spring-maven-api: real Wrapper build, executable JAR image, HTTP API, restricted runtime, no services",
+    "spring-gradle-web: real Wrapper build, executable JAR image, HTTP API, restricted runtime, no services",
+    "JAR embedded page/JS and HTTP POST served through existing gateway",
+    "v1 production/v2 preview, strict custom health, promote, same-image rollback; no wrapper/Git/build rerun",
+    "real Java startup exit classified and production preserved",
+    "two executable JARs fail explicitly; manifest artifact resolves ambiguity",
+    "Compose restart + missing Gradle/Maven/web runtimes recovered from saved images without rebuild",
+    "scoped project deletion including old partial-label images; all other current containers/images/volumes preserved"
+  ],
+  "projects": {
+    "spring-gradle-api": {
+      "id": "43cb055daedc47ae9fc5dbe4eab55dd0",
+      "deployment_id": "dce9775651394e12aa7988f8e3bd744f",
+      "source_id": "1983b063898041c7b3efb64af76ac122",
+      "url": "http://p-spring-gradle-api-1791438612.localhost:8080",
+      "image": "sha256:6693c40a346a886c2d33be584edab71a019e09f26af2386fe3563addd2264143"
+    },
+    "spring-maven-api": {
+      "id": "671b318344434a50bd3dc5d098e64b76",
+      "deployment_id": "73604af9b349401f8c82f25d3f88be58",
+      "source_id": "878aa0ec937f4e3698496a8fe6cba92e",
+      "url": "http://p-spring-maven-api-1791438612.localhost:8080",
+      "image": "sha256:12daaa6d7a14e02f64d0b9b9291d6c8c318da137f21b0a6bca2acf5fdd7ac41d"
+    },
+    "spring-gradle-web": {
+      "id": "13fa316a73074d488e9f33fe5894f579",
+      "deployment_id": "e06e42cebd8f420fa4238f904eb396cf",
+      "source_id": "a3622c1652af4b16a914e586faba3084",
+      "url": "http://p-spring-gradle-web-1791438612.localhost:8080",
+      "image": "sha256:400243d4abe2cca882e58122f90fd701caa497c89038be685ad2cc1a4082eeea"
+    }
+  },
+  "status": "PASS",
+  "environment": "Windows Docker Desktop Linux; AWS not tested",
+  "cleanup_fix": "Single ownership LABEL + project-scoped intermediate cleanup; successful build/recovery checks reused",
+  "protected_resources": {
+    "containers": 44,
+    "images": 277,
+    "volumes": 43
+  }
+}

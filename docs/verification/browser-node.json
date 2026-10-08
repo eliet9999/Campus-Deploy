@@ -1,7 +1,7 @@
 {
-  "production": "http://p-ui-node-1791431514498.localhost:8080",
-  "v1": "http://d-2b890f92aa8b4d6388688aae6267c418.localhost:8080",
-  "v2": "http://d-12afce89cc29433c9e2fef5b32b03927.localhost:8080",
+  "production": "http://p-ui-node-1791439924770.localhost:8080",
+  "v1": "http://d-0fa0e280a60c4432aa0894a7f63fc075.localhost:8080",
+  "v2": "http://d-a29b48159e1e4ad5b397aee172a63fdb.localhost:8080",
   "issues": {
     "errors": [],
     "failures": [],

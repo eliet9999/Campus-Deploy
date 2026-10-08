@@ -1,8 +1,12 @@
 # 구조와 불변식
 
-## SPRING_BOOT 확장
+## Spring 프로필과 선언형 배포 계획
 
-2026-10-08 사용자 승인으로 Java 21/Gradle + frontend/ Vite + MySQL/Redis를 추가했습니다. 아래 P0/P1 불변식은 유지하며 Spring의 빌드, 서비스, 데이터 정책, 복구 경계는 [SPRING_BOOT.md](SPRING_BOOT.md)에 정의합니다. Spring 화면은 gateway의 정적 SPA 제공, `/api/*`와 `/uploads/*`는 같은 배포의 Java runtime으로 프록시됩니다.
+Spring 분석은 `spring_plan.analyze`가 facts를 수집하고 `plan`이 profile/root/buildTool/artifact/health/services를 확정하는 두 단계입니다. `sources.analysis/plan`을 추가하는 additive migration을 사용하며 기존 배포 행·이미지는 변경하지 않습니다. 신규 `SPRING_BOOT_JAR`는 Java 21 Gradle/Maven Wrapper 기반 실행 JAR로 frontend가 필요 없습니다. 기존 `SPRING_BOOT_VITE`는 별도 Vite 정적 화면과 Gradle backend를 보존합니다. 기존 `SPRING_BOOT` 문자열도 Vite 호환 경로로 지원합니다.
+
+일반 JAR은 전체 HTTP 경로를 Java로 프록시합니다. Vite는 정적 SPA를 제공하고 `/api/*`, `/uploads/*`, 지정 health만 Java로 보냅니다. 서비스는 JAR manifest 또는 기존 Vite 계약에서만 활성화합니다. 의존성은 hint이며 생성 근거가 아닙니다. 실행 JAR은 구조를 검증해 하나로 확정합니다. 원본 소스/application.yml을 수정하지 않으며 기존 aurashop-v1만 별도 호환 모듈입니다.
+
+배포 plan은 settings에 snapshot으로 보존하고 빌드 전 소스 재분석과 비교합니다. runtime/image/Preview/운영 전환은 기존 구조를 재사용합니다. 일반 JAR의 기본 `/` 404는 HTTP 연결 확인으로 표시하고, 명시 health는 2xx를 요구합니다. build와 runtime은 분리하며 image에는 JRE+JAR만 포함합니다. [기능·기술 상세 명세](FEATURE_SPEC.md), [Spring 계약](SPRING_BOOT.md)에 manifest, 서비스 수명과 한계를 정의합니다.
 
 ```text
 Browser localhost:3000 → FastAPI + built React UI → SQLite WAL
@@ -52,6 +56,8 @@ STATIC은 일반 파일/404, Vite만 HTML 내비게이션의 확장자 없는 �
 루트 npm lockfile v2/v3, scripts.start, 미지원 구조/의존성을 검사합니다. Vite 정적 판정이 우선입니다. builder는 기존 격리 설정에서 `npm ci && npm run build --if-present`를 실행합니다. 사용자 Dockerfile은 실행하지 않습니다. 설치된 `/work` tar를 크기·파일·경로·링크 검사 후 메모리/임시 파일에서 새 Docker context로 재구성합니다. host에 extract하지 않습니다. 플랫폼 Dockerfile은 고정된 base image ID, COPY, USER, ENV, CMD만 포함하며 RUN이 없습니다.
 
 `campus-runtime:<deployment-id>-<source-sha-prefix>` tag와 설치/프로젝트/배포/전체 SHA label을 기록합니다. DB의 실제 실행 기준은 변경 불가능한 image ID입니다. `.env`, socket, 키는 context와 runtime에 전달되지 않습니다.
+
+이미지 소유 label은 플랫폼 Dockerfile의 단일 LABEL로 기록합니다. Docker의 label별 중간 config가 남는 것을 방지합니다. 정리 시 이전 버전이 만든 부분 label 이미지도 instance/project/kind(배포 정리는 deployment까지)를 확인해 제거하며, 다른 프로젝트/참조 중인 이미지를 강제 제거하거나 전역 prune하지 않습니다. 삭제 완료 기록은 이 정리가 성공한 뒤에만 남깁니다.
 
 runtime은 `runtime-<32자리 hex ID>`, uid/gid 1000, read-only root, 0.5 CPU/512MiB/128 PID, 64MiB tmpfs, cap-drop ALL/no-new-privileges로 실행합니다. host port와 bind mount는 없습니다. Compose가 소유 label이 있는 **internal runtime network**를 만들며 gateway만 관리·runtime 양쪽에 연결됩니다. API/worker는 관리 network, builder는 별도 기본 bridge입니다. 런타임 간 통신까지 격리하는 다중 tenant network는 아닙니다.
 

@@ -77,6 +77,7 @@ class DB:
             con.executescript(SCHEMA)
             # Additive migrations preserve existing P0 deployments and logs.
             migrations = {
+                'sources': {'analysis': 'TEXT', 'plan': 'TEXT'},
                 'deployments': {'runtime_image': 'TEXT', 'runtime_state': 'TEXT', 'runtime_error': 'TEXT',
                     'runtime_log_bytes': 'INTEGER NOT NULL DEFAULT 0', 'runtime_log_container': 'TEXT', 'runtime_log_cursor': 'TEXT'},
                 'logs': {'stream': "TEXT NOT NULL DEFAULT 'build'"},
@@ -154,6 +155,15 @@ def new_deployment(con, project, source, settings):
                         start='java -jar /app/app.jar', port=8080, runtime_memory_bytes=1024*1024**2,
                         runtime_cpu=0.5, runtime_pids=128, health_timeout=settings.spring_health_timeout,
                         services=['MySQL', 'Redis', 'uploads'], data_policy='project-shared; code-only rollback; validate schema after first production')
+    if source['preset'] in ('SPRING_BOOT_JAR', 'SPRING_BOOT_VITE'):
+        plan = json.loads(source['plan'])
+        snapshot.update(plan=plan, facts=json.loads(source['analysis']),
+                        build=('./gradlew bootJar --no-daemon' if plan['build_tool'] == 'gradle' else './mvnw -DskipTests package') if plan['use_wrapper'] else 'frontend: npm ci/build; backend: Gradle bootJar',
+                        output='immutable Java image' + (' + frontend dist' if plan['frontend_root'] else ''),
+                        start='java -jar /app/app.jar', port=8080, runtime_memory_bytes=1024*1024**2,
+                        runtime_cpu=0.5, runtime_pids=128, health_timeout=settings.spring_health_timeout,
+                        health_path=plan['health_path'], health_policy=plan['health_policy'],
+                        data_policy='project-shared; code-only rollback; no database rollback')
     con.execute('INSERT INTO deployments(id,project_id,source_id,sha,preset,settings,status,created,stages) VALUES(?,?,?,?,?,?,?,?,?)',
                 (dep, project, source['id'], source['sha'], source['preset'], json.dumps(snapshot), 'QUEUED', now, json.dumps({'QUEUED': now})))
     enqueue(con, 'DEPLOY', dep)

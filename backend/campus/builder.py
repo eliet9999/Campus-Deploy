@@ -29,7 +29,7 @@ def source_tar(source, target):
                 info = tarfile.TarInfo(path.relative_to(source).as_posix())
                 info.size = path.stat().st_size
                 info.uid = info.gid = 1000
-                info.mode = 0o600
+                info.mode = 0o700 if path.name in ('gradlew', 'mvnw') else 0o600
                 with path.open('rb') as data:
                     archive.addfile(info, data)
         ready = tarfile.TarInfo('.campus-input-ready')
@@ -58,9 +58,12 @@ def build(worker, deployment, source, staging, mode=None, environment=None):
         node_server = mode is None and deployment['preset'] == 'NODE_SERVER'
         command = NODE_COMMAND if node_server else COMMAND
         if java:
-            from .spring import JAVA_COMMAND
-            command = JAVA_COMMAND
-        db.log(dep, f'Docker image: {image.id}\nDigests: {snapshot["image_digests"]}\n' + ('$ gradle --no-daemon bootJar -x test\n' if java else '$ npm ci --no-audit --no-fund && npm run build' + (' --if-present' if node_server else '') + '\n'))
+            from .spring import java_command, WRAPPER_COMMANDS
+            recipe = snapshot['plan']
+            command = java_command(recipe)
+        db.log(dep, f'Docker image: {image.id}\nDigests: {snapshot["image_digests"]}\n' +
+               ('$ ' + (WRAPPER_COMMANDS[recipe['build_tool']] if recipe['use_wrapper'] else 'gradle --no-daemon bootJar -x test') + '\n'
+                if java else '$ npm ci --no-audit --no-fund && npm run build' + (' --if-present' if node_server else '') + '\n'))
         labels = {'campus.instance': cfg.instance, 'campus.kind': 'build', 'campus.project': deployment['project_id'], 'campus.deployment': dep}
         work_volume = client.volumes.create(name=f'campus-work-{dep}', driver='local',
             driver_opts={'type': 'tmpfs', 'device': 'tmpfs', 'o': 'size=1073741824,uid=1000,gid=1000,mode=0700,nosuid,nodev'},
@@ -68,7 +71,9 @@ def build(worker, deployment, source, staging, mode=None, environment=None):
         container = client.containers.create(
             image.id, command, name=f'campus-build-{dep}', user='1000:1000', working_dir='/work',
             environment={'HOME': '/tmp', 'NPM_CONFIG_CACHE': '/tmp/npm-cache', 'CI': 'true', 'GIT_TERMINAL_PROMPT': '0', 'GIT_LFS_SKIP_SMUDGE': '1',
-                         **({'GRADLE_USER_HOME': '/tmp/gradle', 'JAVA_TOOL_OPTIONS': '-XX:ActiveProcessorCount=2'} if java else {}), **(environment or {})},
+                         **({'GRADLE_USER_HOME': '/tmp/gradle', 'MAVEN_USER_HOME': '/work/.campus-maven',
+                             'MAVEN_OPTS': '-Dmaven.repo.local=/tmp/m2 -Xmx1024m',
+                             'JAVA_TOOL_OPTIONS': '-XX:ActiveProcessorCount=2 -Duser.home=/tmp'} if java else {}), **(environment or {})},
             network_mode='bridge', read_only=True, cap_drop=['ALL'], security_opt=['no-new-privileges:true'],
             nano_cpus=1_000_000_000, mem_limit=2 * 1024**3, memswap_limit=2 * 1024**3,
             pids_limit=256, init=True,
@@ -113,11 +118,12 @@ def build(worker, deployment, source, staging, mode=None, environment=None):
             con.execute('UPDATE deployments SET exit_code=? WHERE id=?', (code, dep))
         if code != 0:
             reason = ' (메모리 한도 초과)' if container.attrs['State'].get('OOMKilled') else ''
-            raise BuildFailed(f'{"Gradle" if java else "npm"} 빌드 실패: exit {code}{reason}. 실제 로그를 확인하세요.', code)
+            raise BuildFailed(f'{recipe["build_tool"] if java else "npm"} 빌드 실패: exit {code}{reason}. 실제 로그를 확인하세요.', code)
         if log_errors:
             raise BuildFailed('빌드 로그 수집 실패: ' + str(log_errors[0]), code)
         # The runner stays alive while dist is copied; stopping would discard tmpfs.
-        stream, _ = container.get_archive('/work/campus-runtime/app.jar' if java else '/work' if node_server else '/work/dist')
+        result_path = ('/work/' + recipe['output_dir']) if java else '/work' if node_server else '/work/dist'
+        stream, _ = container.get_archive(result_path)
         with tempfile.TemporaryFile() as archive:
             total = 0
             for chunk in stream:
@@ -129,11 +135,12 @@ def build(worker, deployment, source, staging, mode=None, environment=None):
                 archive.write(chunk)
             archive.seek(0)
             if java:
-                from .spring import jar_archive
+                from .spring import jar_archive, select_jar_archive
                 from .runtime_image import create_image
                 with tempfile.TemporaryFile() as jar:
-                    jar_archive(archive, jar, cfg)
-                    return create_image(worker, deployment, client.images.get(cfg.java_image).id, jar, client)
+                    selected = select_jar_archive(archive, jar, cfg, recipe)
+                    db.log(dep, '[artifact] ' + selected['artifact'] + '; sha256=' + selected['artifact_sha256'] + '\n')
+                    return {**create_image(worker, deployment, client.images.get(cfg.java_image).id, jar, client), **selected}
             if node_server:
                 from .runtime_image import create_image
                 return create_image(worker, deployment, image.id, archive, client)

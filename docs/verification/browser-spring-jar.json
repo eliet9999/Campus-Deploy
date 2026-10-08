@@ -1,0 +1,13 @@
+{
+  "url": "http://p-jar-browser-1791439945719.localhost:8080",
+  "projectId": "97425911b53745e989686bafde0504ca",
+  "checks": [
+    "no frontend required",
+    "source plan visible",
+    "no automatic services",
+    "runtime READY",
+    "JAR embedded HTML/JS",
+    "real API button",
+    "code-only rollback warning"
+  ]
+}

@@ -11,3 +11,4 @@
 - runtime은 전용 internal network, 비root/자원 제한/no host ports. 배포 이미지 보존, health 후 운영 포인터 변경, 재빌드 없는 롤백, startup reconciliation. 다른 프로젝트 자원에 영향 금지.
 - 실제 HTTP, JS/CSS, 브라우저 동작과 로그를 검증한다. 테스트 성공을 꾸미지 않고 미검증/실패를 VERIFICATION.md에 구분한다.
 - 고정 의존성/lockfile, 초기화·doctor·start·stop, 샘플, pytest/E2E 및 요청된 운영 문서를 제공한다. STATUS.md를 갱신한다.
+- 2026-10-08 후속 요청: 일반 SPRING_BOOT_JAR(Java 21/단일 모듈 Gradle·Maven Wrapper)와 기존 SPRING_BOOT_VITE를 구분한다. frontend 필수 조건은 Vite에만 적용한다. facts/plan과 선택 campus-deploy.yaml, 명시적 서비스, generic 소스 무수정, 코드-only rollback/프로젝트 DB 공유를 유지한다. 상세 계약은 SPRING_BOOT.md, 기능 명세는 FEATURE_SPEC.md를 따른다. 기존 SPRING_BOOT 저장 기록은 호환한다.

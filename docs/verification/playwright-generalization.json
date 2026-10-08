@@ -1,0 +1,36 @@
+{
+  "stats": {
+    "startTime": "2026-10-08T06:11:39.358Z",
+    "duration": 229131.953,
+    "expected": 6,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "specs": [
+    {
+      "title": "Public GitHub URL is the default and deploys without a ZIP or typed project names",
+      "ok": true
+    },
+    {
+      "title": "STATIC UI upload → Preview → promote → rollback → cleanup",
+      "ok": true
+    },
+    {
+      "title": "React Vite browser interaction, SPA direct navigation, MIME and origin boundary",
+      "ok": true
+    },
+    {
+      "title": "Node Express UI, live POST response, Preview isolation, promote and image rollback",
+      "ok": true
+    },
+    {
+      "title": "Spring executable JAR without frontend: source plan, deploy, embedded page and real API button",
+      "ok": true
+    },
+    {
+      "title": "Spring GitHub -> real signup/login, product, persistent upload and application API",
+      "ok": true
+    }
+  ]
+}

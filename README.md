@@ -9,7 +9,8 @@
 | STATIC | 루트 `index.html`, HTML/CSS/클라이언트 JS | npm 실행 없이 정적 파일 수집 |
 | VITE_STATIC | 루트 `package.json`, npm `package-lock.json` v2/v3, Vite 의존성, build script | Node 24 컨테이너에서 `npm ci`, `npm run build`, `dist/index.html` |
 | NODE_SERVER | 루트 `package.json`, npm lockfile v2/v3, `scripts.start` | 격리된 `npm ci`, 선택적 `npm run build --if-present`, 배포별 이미지, `npm start` |
-| SPRING_BOOT | 루트 Spring Boot Gradle/Java 21 + `frontend/` Vite/npm lockfile | Vite 정적 화면 + bootJar/Java 이미지 + 프로젝트별 MySQL·Redis·uploads |
+| SPRING_BOOT_JAR | Java 21 단일 모듈 Gradle/Maven Wrapper; frontend 불필요 | 실행 Boot JAR/불변 JRE 이미지; manifest로 MySQL·Redis·storage 선택 |
+| SPRING_BOOT_VITE | 기존 Spring Boot Gradle/Java 21 + 별도 Vite/npm lockfile | Vite 정적 화면 + bootJar/Java 이미지 + 프로젝트별 MySQL·Redis·storage |
 
 ZIP을 감싼 단일 최상위 폴더는 정규화합니다. 공개 `https://github.com/owner/repo`의 실제 기본 브랜치를 조회하고 commit SHA에 고정된 archive를 가져옵니다. 계정/PAT는 필요 없습니다. npm 공식 registry의 잠긴 의존성만 지원합니다.
 
@@ -19,15 +20,17 @@ Node 앱은 `process.env.PORT`를 사용하고 `0.0.0.0`에서 listen하며 `/`�
 app.listen(Number(process.env.PORT), '0.0.0.0');
 ```
 
-루트 Gradle Spring Boot는 SPRING_BOOT로, npm 프로젝트는 Vite를 먼저 판정하고 나머지 start 프로젝트를 NODE_SERVER로 검사합니다. Python/FastAPI, Maven, Next.js SSR/ISR, WebSocket, background worker/cron, 일반 monorepo/다중 Gradle 모듈, pnpm/yarn, private Git, webhook/자동 HTTPS는 지원하지 않습니다. Node 프리셋의 DB/Redis 제한은 유지됩니다. 사용자 Dockerfile/Compose는 실행하지 않습니다. 모든 프로그램의 동작을 정적으로 판별하는 것은 아닙니다.
+Spring은 분석 facts와 실행 plan을 분리합니다. 흔한 단일 JAR 앱은 manifest 없이 감지하며, root·frontend·JAR 선택이 모호하면 `campus-deploy.yaml`을 요구합니다. Gradle `*-plain.jar`를 제외하고 실행 가능한 Boot JAR 정확히 하나를 검증합니다. 일반 JAR 소스와 application.yml은 수정하지 않습니다. npm 프로젝트는 Vite를 먼저 판정하고 나머지 start 프로젝트를 NODE_SERVER로 검사합니다. Python/FastAPI 앱, WAR/임의 Java/멀티모듈, Maven+별도 Vite, Next.js SSR/ISR, WebSocket, background worker/cron, pnpm/yarn, private Git, webhook/자동 HTTPS는 미지원입니다. Node의 DB/Redis 제한은 유지하며 사용자 Dockerfile/Compose는 실행하지 않습니다.
+
+일반 JAR의 서비스는 manifest에서 선택한 경우에만 생성합니다. 의존성은 hint입니다. health를 지정하면 해당 경로의 2xx를 요구하며, 미지정 JAR의 기본 `/` 404는 API-only 앱을 위해 HTTP 연결 확인으로 구분합니다. [상세 기능·기술 명세](FEATURE_SPEC.md), [Spring/manifest 계약](SPRING_BOOT.md)을 확인하세요. 기존 `SPRING_BOOT` 기록/이미지/데이터는 계속 읽습니다.
 
 **GitHub 코드 주소는 실행 중인 사이트 주소가 아닙니다.** 플랫폼을 실행한 뒤 관리 화면의 공개 GitHub 입력란에 저장소 루트 주소를 넣어 배포하세요. 사용자 승인으로 `Gandalem/aurashop`의 Spring Boot·MySQL·Redis·frontend 구성 지원을 추가했습니다.
 
 ## Spring Boot / aurashop
 
-`https://github.com/Gandalem/aurashop.git` 입력 → 소스 검사 → **SPRING_BOOT** → 배포하기. 최초 Java 의존성 다운로드와 DB 초기화에 몇 분이 필요할 수 있습니다. Docker/AWS/DB 암호/포트 입력은 필요하지 않습니다. `scripts/start`가 Gradle 9.4.1/JDK 21, Temurin 21.0.10 JRE, MySQL 8.4.8, Redis 7.4.8 고정 버전 이미지를 준비합니다. 배포는 사용한 실제 image ID를 보존합니다.
+`https://github.com/Gandalem/aurashop.git` 입력 → 소스 검사 → **SPRING_BOOT_VITE** → 배포하기. 최초 Java 의존성 다운로드와 DB 초기화에 몇 분이 필요할 수 있습니다. Docker/AWS/DB 암호/포트 입력은 필요하지 않습니다. `scripts/start`가 Gradle 9.4.1/JDK 21, Temurin 21.0.10 JRE, MySQL 8.4.8, Redis 7.4.8 고정 버전 이미지를 준비합니다. 배포는 사용한 실제 image ID를 보존합니다.
 
-기본 계약은 루트 단일 Spring Boot Gradle 프로젝트, `frontend/`의 잠긴 Vite, `/api/health`의 2xx, Spring 표준 datasource/Redis 환경 변수, `/api/*` 및 `/uploads/*`입니다. aurashop은 상품 조회 `/api/products`로 DB 연결까지 검사합니다. Maven 및 임의의 Java 구조 전체를 지원하는 것은 아닙니다.
+이 Vite 계약은 단일 Spring Boot Gradle 프로젝트, 별도 잠긴 Vite, `/api/health`의 2xx, Spring 표준 datasource/Redis 환경 변수, `/api/*` 및 `/uploads/*`입니다. aurashop은 `/api/products`로 DB 연결까지 검사합니다. 프런트가 없는 Gradle/Maven 앱에는 별도의 SPRING_BOOT_JAR 계약을 적용합니다. aurashop 성공을 모든 Spring 프로젝트의 검증으로 표현하지 않습니다.
 
 `aurashop-v1` 레시피는 배포용 복사본에서만 API/refresh 주소와 중복 `/api`를 정규화하고 업로드 URL을 상대 경로로 변경합니다. JWT 서명키는 프로젝트별로 생성·보존합니다. 원본 Git/SHA는 그대로 유지하고 변경 파일/레시피는 빌드 로그와 배포 settings에 기록합니다. 일반 Spring 프로젝트는 이 소스 보정을 받지 않습니다.
 

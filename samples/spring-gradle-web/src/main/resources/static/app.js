@@ -1,0 +1,1 @@
+document.querySelector("#hello").onclick=async()=>{const r=await fetch("/api/hello");document.querySelector("#result").textContent=(await r.json()).message;};

@@ -92,13 +92,14 @@ def extract_zip(archive, destination, settings):
 def detect(root):
     if (root / '.gitmodules').exists():
         raise Rejected('Git submodule은 지원하지 않습니다.')
-    if (root / 'build.gradle').is_file() or (root / 'build.gradle.kts').is_file():
-        from .spring import inspect_spring
-        inspect_spring(root)
-        return 'SPRING_BOOT'
-    server_files = ('requirements.txt', 'pyproject.toml', 'pom.xml', 'manage.py')
+    from .spring_plan import analyze, plan, read_manifest
+    facts = analyze(root)
+    manifest = read_manifest(root)
+    if facts['backends'] or manifest is not None:
+        return plan(root, facts, manifest)['profile']
+    server_files = ('requirements.txt', 'pyproject.toml', 'manage.py')
     if any((root / p).exists() for p in server_files):
-        raise Rejected('Python 및 Maven 프로젝트는 아직 지원하지 않습니다. Spring Boot는 Java 21/Gradle + frontend/ Vite 구성을 지원합니다.')
+        raise Rejected('Python 프로젝트는 아직 지원하지 않습니다. Spring Boot는 Java 21 Gradle/Maven Wrapper JAR 또는 검증된 Vite 구성을 지원합니다.')
     pkg_file = root / 'package.json'
     if pkg_file.exists():
         try:

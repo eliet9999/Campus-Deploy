@@ -14,7 +14,7 @@ test('Spring GitHub -> real signup/login, product, persistent upload and applica
   await page.getByLabel('GitHub 저장소 주소',{exact:true}).fill('https://github.com/Gandalem/aurashop.git');
   await page.getByRole('button',{name:'소스 검사',exact:true}).click();
   await expect(page.getByText('지원되는 프로젝트입니다')).toBeVisible({timeout:120000});
-  await expect(page.getByText('SPRING_BOOT · Java 21 + Vite + MySQL + Redis',{exact:true})).toBeVisible();
+  await expect(page.getByText('SPRING_BOOT_VITE · Java 21 + Vite · 선택 서비스',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'배포하기'}).click();
   await expect(page.getByRole('link',{name:'운영 사이트 열기'})).toBeVisible({timeout:720000});
   await expect(page.getByText('웹 서버 실행 중',{exact:true})).toBeVisible();

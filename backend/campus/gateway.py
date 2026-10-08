@@ -39,6 +39,9 @@ async def proxy_runtime(row, request):
     client = httpx.AsyncClient(timeout=httpx.Timeout(15, connect=3), trust_env=False, follow_redirects=False)
     try:
         response = await client.send(client.build_request(request.method, target, headers=headers, content=bytes(body)), stream=True)
+    except httpx.TimeoutException:
+        await client.aclose()
+        raise HTTPException(504, 'runtime 응답 timeout')
     except httpx.HTTPError:
         await client.aclose()
         raise HTTPException(502, 'runtime 연결에 실패했습니다.')
@@ -86,12 +89,14 @@ def create_app(settings=None):
             row = None
         if not row:
             raise HTTPException(404)
-        if row['preset'] == 'NODE_SERVER':
+        if row['preset'] in ('NODE_SERVER', 'SPRING_BOOT_JAR'):
             return await proxy_runtime(row, request)
-        if row['preset'] == 'SPRING_BOOT':
+        if row['preset'] in ('SPRING_BOOT', 'SPRING_BOOT_VITE'):
             if row['runtime_state'] not in ('RUNNING', 'HEALTH_CHECK'):
                 raise HTTPException(503, 'Spring Boot/MySQL/Redis 준비 또는 복구 중입니다.')
-            if path == 'api' or path.startswith('api/') or path.startswith('uploads/'):
+            import json
+            health = json.loads(row['settings']).get('health_path', '/api/health')
+            if path == 'api' or path.startswith('api/') or path.startswith('uploads/') or '/' + path == health:
                 return await proxy_runtime(row, request)
         if request.method not in ('GET', 'HEAD'):
             raise HTTPException(405)
@@ -116,7 +121,7 @@ def create_app(settings=None):
             file /= 'index.html'
         if not file.is_file():
             accepts_html = 'text/html' in request.headers.get('accept', '')
-            if row['preset'] in ('VITE_STATIC', 'SPRING_BOOT') and not PurePosixPath(path).suffix and accepts_html:
+            if row['preset'] in ('VITE_STATIC', 'SPRING_BOOT', 'SPRING_BOOT_VITE') and not PurePosixPath(path).suffix and accepts_html:
                 file = root / 'index.html'
             else:
                 raise HTTPException(404)

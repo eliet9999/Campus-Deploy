@@ -1,0 +1,13 @@
+{
+  "checks": [
+    "manifest-only MySQL/Redis/storage /app/state; real reads/writes; generic adapter none",
+    "generic JAR failed Preview preserves existing production and all three data stores",
+    "generic JAR and selected services recover after Compose restart and missing containers; image/data/logs preserved",
+    "generic JAR project-owned DB/Redis/storage/network/images deleted; other demo responses unchanged"
+  ],
+  "status": "PASS",
+  "project_id": "b02982729faa4f8ebf493f69ac2b6791",
+  "deployment_id": "8dd8c1aa8400407eaac3aa8c77b95624",
+  "image": "sha256:a1e91966870103b47565393a67a6591473d943019bd50c3cb8cb43d0deffd080",
+  "source_sha": "0729991054d796b7ad229d1b2c6625afc3e2ad4ee96721e2e1af053883ee7b3b"
+}

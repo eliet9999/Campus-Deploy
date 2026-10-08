@@ -1,10 +1,14 @@
 # 적용한 통제와 한계
 
-이 플랫폼은 **신뢰된 팀 소스의 통제된 시연**을 위한 STATIC/VITE_STATIC, NODE_SERVER, SPRING_BOOT 구현입니다. 악성 코드에 대한 완전한 격리, 불특정 다수 SaaS, 무중단·CDN·Vercel 동등 성능을 보장하지 않습니다.
+이 플랫폼은 **신뢰된 팀 소스의 통제된 시연**을 위한 STATIC/VITE_STATIC, NODE_SERVER, SPRING_BOOT_JAR/SPRING_BOOT_VITE 구현입니다. 악성 코드에 대한 완전한 격리, 불특정 다수 SaaS, 무중단·CDN·Vercel 동등 성능을 보장하지 않습니다.
 
 Spring의 프로젝트 DB/Redis 격리, 영속 데이터/비밀 관리, 공유 Preview·코드 롤백 한계는 [SPRING_BOOT.md](SPRING_BOOT.md)를 참조하세요. Node 프리셋의 기존 DB/Redis 금지 계약은 유지합니다. Spring 지원이 사용자 앱의 권한/결제/비즈니스 로직 보안성을 보증하지는 않습니다.
 
 ## 적용한 통제
+
+- Spring manifest는 16KiB, 허용된 선언 키/타입, 상대 root·제한된 JAR 패턴·HTTP 경로만 받습니다. YAML tag/anchor/alias/중복키, traversal, host mount, 자유 형식 build/start 명령을 거부합니다. 실제 Wrapper와 build script는 사용자 코드로 취급해 제한된 builder 안에서만 실행합니다. 일반 JAR은 소스 보정을 하지 않습니다.
+- `.mvn`에서 Wrapper properties/JAR/downloader와 maven.config/jvm.config만 보존합니다. settings.xml·자격증명 파일·임의 dotfile은 소스 snapshot에 포함하지 않습니다. Maven Wrapper 실행 배포판은 임시 작업 볼륨에 두며 runtime 이미지에는 포함하지 않습니다.
+- Spring의 명시 health는 2xx, 일반 JAR의 기본 `/`는 2xx/404 HTTP 연결만 확인합니다. UI·로그에 정책을 표시하며 실제 앱 기능/DB 정합성 검사로 표현하지 않습니다. 프로젝트 DB는 Preview/Production 공유이고 코드 롤백은 DB 복원이 아닙니다.
 
 - 단일 계정, Argon2 암호 해시, itsdangerous 서명 + 서버 DB의 만료/폐기 가능한 세션. 쿠키는 host-only, HttpOnly, SameSite Strict입니다. HTTPS 관리 origin이면 Secure도 설정합니다. 로컬 HTTP에서는 TLS가 없으므로 Secure를 켜지 않습니다.
 - 로그인 포함 모든 변경 요청에 정확한 관리 Origin 검사, 인증된 변경 요청에 세션 CSRF 토큰 검사. 10회/5분/IP 로그인 시도 제한은 SQLite에 유지됩니다. 프록시 전달 헤더를 신뢰하지 않습니다.
@@ -37,7 +41,7 @@ Spring의 프로젝트 DB/Redis 격리, 영속 데이터/비밀 관리, 공유 P
 - cache no-store는 앱이 직접 설치한 service worker/외부 캐시까지 통제하지 않습니다. P0 샘플은 service worker를 사용하지 않습니다.
 - 공급망 취약점 전수 감사, 악성 Docker/kernel 탈출 테스트, 다중 사용자 권한 격리, 장시간 부하/가용성 시험은 하지 않았습니다. SQLite API와 worker는 한 호스트의 동일 볼륨을 전제로 합니다.
 - runtime들은 하나의 내부 network를 공유하므로 서로의 HTTP 서버와 gateway에 접근할 수 있습니다. 이 설계는 악성 다중 tenant 격리 환경이 아닙니다. 장시간/대량 동시 HTTP 부하의 설치 전체 제한은 별도 필요합니다. 응답 한도 초과 시 stream이 종료되며 SSE/긴 연결은 보장하지 않습니다.
-- health는 `/`의 2xx와 process 생존 검사이며 전체 사용자 기능의 정합성을 증명하지 않습니다. DB/worker 미지원은 알려진 dependency 검사와 실행 계약이며 동적 import·하드코딩된 외부 의존성을 모두 분석하지는 않습니다. readonly filesystem과 network 조건에 맞지 않는 앱은 실패하며 자동 수정하지 않습니다.
+- health는 HTTP 응답과 process 생존 검사이며 전체 사용자 기능의 정합성을 증명하지 않습니다. Node의 DB/worker 미지원은 알려진 dependency 검사와 실행 계약이며 동적 import·하드코딩된 외부 의존성을 모두 분석하지는 않습니다. readonly filesystem과 network 조건에 맞지 않는 앱은 실패하며 일반 소스를 자동 수정하지 않습니다.
 - runtime 로그는 별도 2MiB 저장 한도와 Docker 2MiB 회전 한도가 있습니다. poll 사이의 폭주(최근 1,000줄 초과), daemon 장애, 회전으로 과거 로그가 유실될 수 있습니다. 완전한 감사 로그 시스템은 아닙니다. image/소스 보존 전체 quota가 없으므로 장기 운영에는 별도 용량 정책이 필요합니다.
 - Gateway 검사는 대표 로컬 자원 HTTP 검증입니다. 모든 경로·상호작용을 대신 검증하지 않습니다. 제공 React/STATIC 샘플은 별도로 Playwright 클릭/새로고침/콘솔/네트워크를 검사했습니다.
 - Windows NTFS 권한은 setup.ps1에서 `.secrets`에 현재 사용자와 SYSTEM만 허용하도록 설정합니다. Linux는 디렉터리 700, 파일 600입니다. 저장소에는 비밀을 포함하지 않습니다. 스크린샷/로그 증적에 시험용 소스 URL·SHA는 포함될 수 있습니다.

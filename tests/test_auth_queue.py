@@ -93,6 +93,32 @@ def test_cancel_and_stale_recovery(setup):
     assert any('preserved log' in item['text'] for item in client.get('/api/deployments/'+new+'/logs').json()['items'])
 
 
+def test_recovery_cleans_terminal_work_without_touching_ready_artifact_or_pending_work(setup):
+    cfg,client,h,worker,sid=setup
+    ids={}
+    for status in ('READY','FAILED','CANCELED','QUEUED'):
+        project=client.post('/api/projects',json={'name':status,'slug':status.lower(),'source_id':sid},headers={**h,'Idempotency-Key':uid()}).json()
+        dep=project['deployment_id']; ids[status]=dep
+        with worker.db.tx() as con:
+            con.execute('UPDATE deployments SET status=? WHERE id=?',(status,dep))
+            if status != 'QUEUED':
+                con.execute("UPDATE jobs SET status='DONE' WHERE subject=?",(dep,))
+            if status == 'READY':
+                con.execute('UPDATE projects SET production_id=? WHERE id=?',(dep,project['id']))
+        for area in ('work','artifacts/.staging','artifacts'):
+            path=cfg.data/area/dep
+            path.mkdir(parents=True,exist_ok=True)
+            (path/'preserved.txt').write_text(status)
+    worker.recover()
+    for status,dep in ids.items():
+        for area in ('work','artifacts/.staging'):
+            assert (cfg.data/area/dep).exists() == (status == 'QUEUED')
+        assert (cfg.data/'artifacts'/dep).exists() == (status in ('READY','QUEUED'))
+        assert worker.db.one('SELECT status FROM deployments WHERE id=?',(dep,))['status'] == status
+    assert worker.db.one('SELECT production_id FROM projects WHERE production_id=?',(ids['READY'],))
+    assert (cfg.data/'sources'/sid/'index.html').exists()
+
+
 def test_delete_cancels_queued_and_cleans_only_owner(setup):
     cfg,client,h,worker,sid=setup
     a=client.post('/api/projects',json={'name':'A','slug':'aaa','source_id':sid},headers={**h,'Idempotency-Key':uid()}).json()

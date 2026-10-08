@@ -1,0 +1,33 @@
+import {test,expect} from '@playwright/test';
+import fs from 'node:fs';
+import path from 'node:path';
+const root=path.resolve('..');
+
+test('Spring executable JAR without frontend: source plan, deploy, embedded page and real API button',async({page,context})=>{
+  test.setTimeout(900000);
+  await page.goto('/');
+  await page.getByLabel('관리자 암호').fill(fs.readFileSync(path.join(root,'.secrets/admin-password.txt'),'utf8').trim());
+  await page.getByRole('button',{name:'워크스페이스 열기'}).click();
+  await page.getByRole('button',{name:'새 프로젝트'}).click();
+  await page.getByRole('button',{name:'ZIP 업로드',exact:true}).click();
+  await page.getByLabel('프로젝트 이름',{exact:true}).fill('Spring JAR browser');
+  await page.getByLabel('프로젝트 주소 (slug)',{exact:true}).fill('jar-browser-'+Date.now());
+  await page.getByLabel('프로젝트 ZIP',{exact:true}).setInputFiles(path.join(root,'samples/spring-gradle-web.zip'));
+  await page.getByRole('button',{name:'소스 검사',exact:true}).click();
+  await expect(page.getByText('SPRING_BOOT_JAR · Java 21 · Gradle/Maven Wrapper · 실행 JAR',{exact:true})).toBeVisible({timeout:120000});
+  await expect(page.getByText('관리 서비스: 없음',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'배포하기'}).click();
+  await expect(page.getByRole('link',{name:'운영 사이트 열기'})).toBeVisible({timeout:720000});
+  await expect(page.getByText('웹 서버 실행 중',{exact:true})).toBeVisible();
+  await expect(page.getByText('Spring 롤백은 코드만 되돌리며 DB 데이터·스키마를 복원하지 않습니다.',{exact:false})).toBeVisible();
+  const url=(await page.getByRole('link',{name:'운영 사이트 열기'}).getAttribute('href'))!;
+  const site=await context.newPage();
+  expect((await site.goto(url))!.status()).toBe(200);
+  await expect(site.getByRole('heading',{name:'JAR 안에서 제공하는 웹사이트'})).toBeVisible();
+  await site.getByRole('button',{name:'서버에 인사하기'}).click();
+  await expect(site.locator('#result')).toHaveText('Campus Spring');
+  expect((await site.request.get(url+'/app.js')).headers()['content-type']).toContain('javascript');
+  await page.screenshot({path:path.join(root,'evidence/spring-jar-dashboard.png'),fullPage:true});
+  await site.screenshot({path:path.join(root,'evidence/spring-jar-browser.png'),fullPage:true});
+  fs.writeFileSync(path.join(root,'evidence/browser-spring-jar.json'),JSON.stringify({url,projectId:new URL(page.url()).hash.slice(1),checks:['no frontend required','source plan visible','no automatic services','runtime READY','JAR embedded HTML/JS','real API button','code-only rollback warning']},null,2));
+});

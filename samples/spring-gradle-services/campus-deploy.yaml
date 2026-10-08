@@ -1,0 +1,12 @@
+version: 1
+runtime: spring-boot
+root: .
+java: 21
+buildTool: gradle
+artifact: build/libs/*.jar
+port: 8080
+health: {path: /api/health}
+services:
+  mysql: {enabled: true}
+  redis: {enabled: true}
+  storage: {enabled: true, mountPath: /app/state}

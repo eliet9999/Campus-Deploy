@@ -1,0 +1,7 @@
+{
+  "kind": "GIT",
+  "url": "https://github.com/Gandalem/aurashop.git",
+  "expectedPreset": "SPRING_BOOT_VITE",
+  "previouslyVerifiedSha": "ab7c23bf5c23b3d9f74c14d8f6172f5cabda990f",
+  "verification": ["frontend/e2e/spring.spec.ts", "scripts/spring_smoke.py", "scripts/spring_lifecycle.py"]
+}
