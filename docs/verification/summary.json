@@ -1,0 +1,65 @@
+{
+  "date": "2026-10-08",
+  "environment": "Windows / Docker Desktop Linux amd64 / Chromium",
+  "pytest": {
+    "tests": "73",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "8.096"
+  },
+  "playwright": {
+    "startTime": "2026-10-08T03:51:39.630Z",
+    "duration": 36995.409,
+    "expected": 3,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "node_lifecycle_checks": [
+    "automatic NODE_SERVER detection; npm ci/image/start/health/READY; v1 production",
+    "nonroot/read-only/CPU/memory/PIDs/capabilities/no host ports; isolated runtime network",
+    "separate persisted build/runtime logs",
+    "POST proxy, user API, management API boundary, WebSocket rejection",
+    "v2 Preview preserves v1 production",
+    "failed promotion health check preserves production",
+    "v2 promote at same production URL",
+    "missing image rollback fails without changing v2 production",
+    "rollback recreates v1 from same image without npm/build",
+    "runtime failure is FAILED with stderr retained; existing production preserved",
+    "project cleanup removes only owned runtime/image; static and other Node production preserved",
+    "service restart preserves Node and static production",
+    "full project stop/start and missing production container: automatic image recovery, no rebuild",
+    "unrelated Docker containers unchanged (no global Docker restart/prune)"
+  ],
+  "static_vite_http_smoke": "PASS",
+  "p0_git_queue_cancel_timeout_kill_recovery_regression": "PASS",
+  "startup_missing_image_recovery": {
+    "missing_image_status": "UNAVAILABLE",
+    "gateway_status": 503,
+    "static_preserved": true,
+    "automatic_restore": "RUNNING",
+    "same_image": "sha256:e7aa36c2ea804516f27540ad9e45e4d979915d940378aa268afff978ea16b351",
+    "no_rebuild": true
+  },
+  "doctor": [
+    {
+      "name": "OS subdomain DNS",
+      "ok": false,
+      "detail": "[Errno 11001] getaddrinfo failed; Chromium .localhost handling is checked separately"
+    },
+    {
+      "name": "real browser subdomain",
+      "ok": true,
+      "detail": "Chromium resolved subdomain and reached gateway: HTTP 404 for unknown project. No DNS overrides used.\n"
+    }
+  ],
+  "systemd_installer": "Linux bash -n PASS; installation and host boot not executed",
+  "not_executed": [
+    "AWS resource changes",
+    "EC2 stop/start",
+    "Ubuntu systemd boot",
+    "global Docker daemon restart",
+    "external client/public DNS testing"
+  ]
+}

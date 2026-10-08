@@ -1,0 +1,148 @@
+{
+  "api": {
+    "mounts": [
+      {
+        "destination": "/data",
+        "read_write": true
+      },
+      {
+        "destination": "/data/artifacts",
+        "read_write": true
+      },
+      {
+        "destination": "/data/metadata",
+        "read_write": true
+      },
+      {
+        "destination": "/run/campus-secrets/auth.json",
+        "read_write": false
+      }
+    ],
+    "ports": {
+      "3000/tcp": [
+        {
+          "HostIp": "127.0.0.1",
+          "HostPort": "3000"
+        }
+      ]
+    },
+    "state": "running"
+  },
+  "gateway": {
+    "mounts": [
+      {
+        "destination": "/data/artifacts",
+        "read_write": false
+      },
+      {
+        "destination": "/data/metadata",
+        "read_write": false
+      }
+    ],
+    "ports": {
+      "8080/tcp": [
+        {
+          "HostIp": "127.0.0.1",
+          "HostPort": "8080"
+        }
+      ]
+    },
+    "state": "running"
+  },
+  "worker": {
+    "mounts": [
+      {
+        "destination": "/data",
+        "read_write": true
+      },
+      {
+        "destination": "/data/artifacts",
+        "read_write": true
+      },
+      {
+        "destination": "/data/metadata",
+        "read_write": true
+      },
+      {
+        "destination": "/var/run/docker.sock",
+        "read_write": true
+      }
+    ],
+    "ports": {},
+    "state": "running"
+  },
+  "orphan_build_containers": 0,
+  "orphan_work_volumes": 0,
+  "storage": {
+    "sqlite_integrity": "ok",
+    "deleted_artifacts_absent": true,
+    "staging_empty": true,
+    "work_empty": true,
+    "deployment_count": 63
+  },
+  "post_stop_start_production_and_logs": true,
+  "node_runtimes": [
+    {
+      "deployment": "2b890f92aa8b4d6388688aae6267c418",
+      "image": "sha256:13afa54e27ffd50d385424364734a4783bae680630850b499ff016f8e6c4a915",
+      "state": "running",
+      "published_ports": false
+    },
+    {
+      "deployment": "12afce89cc29433c9e2fef5b32b03927",
+      "image": "sha256:7bf82c8ac71a8175105918849899cb7299139246a1e26742a36ed0ef74141b2b",
+      "state": "running",
+      "published_ports": false
+    },
+    {
+      "deployment": "48bf51c1231d45ebb187209ef098bbc0",
+      "image": "sha256:e7aa36c2ea804516f27540ad9e45e4d979915d940378aa268afff978ea16b351",
+      "state": "running",
+      "published_ports": false
+    },
+    {
+      "deployment": "0e4f481de1954eb19f9813be54367819",
+      "image": "sha256:2517c4a38ef9f963d81314b1a3fdb0e33bf86988b4834c122603d4282edbc4cb",
+      "state": "running",
+      "published_ports": false
+    },
+    {
+      "deployment": "9700b7ecb54b492993f634fa9828cb2a",
+      "image": "sha256:959ae1bd69271048a8b37ca93eb6c5b24c53bca92f0952d55b1119b23141a8df",
+      "state": "running",
+      "published_ports": false
+    },
+    {
+      "deployment": "88e2091f1b23481bb7924229da3b41fc",
+      "image": "sha256:e3cdae8d8ae1a0583720713c5316fe0556badf472d90162efa5f88b541a304c7",
+      "state": "running",
+      "published_ports": false
+    },
+    {
+      "deployment": "91acc061784e4a89b99095b7542d1ccd",
+      "image": "sha256:13528576ac769d010438d6a7001117ad0141b3af973e0678b34aadc0de5cfecd",
+      "state": "running",
+      "published_ports": false
+    },
+    {
+      "deployment": "9bfa5f9569ad4f76912878cc1272004f",
+      "image": "sha256:4c5b580d08a6687b7e3628c349e998d85a32f9194725689410fd7876a2e8f3aa",
+      "state": "running",
+      "published_ports": false
+    },
+    {
+      "deployment": "aa9cd5c97dc8489baacdc516abe8fe4f",
+      "image": "sha256:26cdba0ae418afec3d9429661f9b412b1daa109f25f3d4a2c4cf3b3c35d17944",
+      "state": "running",
+      "published_ports": false
+    },
+    {
+      "deployment": "ced0d92a81c24f28930f515a86b88738",
+      "image": "sha256:605829bf9a8ff0cb717884461546f4df4e11c328a737e01828819c9efd7007d2",
+      "state": "running",
+      "published_ports": false
+    }
+  ],
+  "runtime_network_internal": true,
+  "node_production_after_regressions": true
+}

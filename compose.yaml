@@ -1,0 +1,82 @@
+name: campus-deploy
+x-common: &common
+  build: .
+  image: campus-deploy-platform:0.1.0
+  restart: unless-stopped
+  init: true
+  read_only: true
+  tmpfs:
+    - /tmp:size=256m
+  security_opt:
+    - no-new-privileges:true
+  cap_drop: [ALL]
+  logging:
+    driver: json-file
+    options: {max-size: "5m", max-file: "2"}
+  environment: &env
+    DATA_DIR: /data
+    SECRETS_DIR: /run/campus-secrets
+    ADMIN_ORIGIN: ${ADMIN_ORIGIN:-http://localhost:3000}
+    BASE_DOMAIN: ${BASE_DOMAIN:-localhost}
+    SITE_SCHEME: ${SITE_SCHEME:-http}
+    SITE_PORT: ${SITE_PORT:-8080}
+    INSTANCE_ID: ${INSTANCE_ID:-campus-deploy-local}
+    BUILD_IMAGE: ${BUILD_IMAGE:-node:24.11.1-bookworm-slim}
+    UPLOAD_LIMIT_MIB: ${UPLOAD_LIMIT_MIB:-50}
+    EXTRACT_LIMIT_MIB: ${EXTRACT_LIMIT_MIB:-200}
+    ARTIFACT_LIMIT_MIB: ${ARTIFACT_LIMIT_MIB:-100}
+    FILE_LIMIT: ${FILE_LIMIT:-10000}
+    BUILD_TIMEOUT_SECONDS: ${BUILD_TIMEOUT_SECONDS:-600}
+    MIN_FREE_MIB: ${MIN_FREE_MIB:-1024}
+    GATEWAY_INTERNAL_URL: http://gateway:8080
+    RUNTIME_NETWORK: ${INSTANCE_ID:-campus-deploy-local}-runtime
+    HEALTH_TIMEOUT_SECONDS: ${HEALTH_TIMEOUT_SECONDS:-30}
+
+services:
+  api:
+    <<: *common
+    ports: ["127.0.0.1:3000:3000"]
+    volumes:
+      - data:/data
+      - metadata:/data/metadata
+      - artifacts:/data/artifacts
+      - ./.secrets/auth.json:/run/campus-secrets/auth.json:ro
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request,os; r=urllib.request.Request('http://127.0.0.1:3000/api/health',headers={'Host':os.environ['ADMIN_ORIGIN'].split('://')[1]}); urllib.request.urlopen(r)"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  gateway:
+    <<: *common
+    command: [uvicorn, 'campus.gateway:create_app', --factory, --host, 0.0.0.0, --port, '8080', --no-proxy-headers]
+    ports: ["${SITE_BIND:-127.0.0.1}:${SITE_PORT:-8080}:8080"]
+    networks: [default, runtime]
+    volumes:
+      - metadata:/data/metadata:ro
+      - artifacts:/data/artifacts:ro
+    depends_on:
+      api: {condition: service_healthy}
+  worker:
+    <<: *common
+    command: [python, -m, campus.worker]
+    volumes:
+      - data:/data
+      - metadata:/data/metadata
+      - artifacts:/data/artifacts
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      api: {condition: service_healthy}
+      gateway: {condition: service_started}
+
+volumes:
+  data:
+  metadata:
+  artifacts:
+
+networks:
+  runtime:
+    name: ${INSTANCE_ID:-campus-deploy-local}-runtime
+    internal: true
+    labels:
+      campus.instance: ${INSTANCE_ID:-campus-deploy-local}
+      campus.kind: runtime-network

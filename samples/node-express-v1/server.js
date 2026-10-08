@@ -1,0 +1,10 @@
+const express = require('express');
+const app = express();
+app.disable('x-powered-by');
+app.use(express.json({limit:'32kb'}));
+app.use((req,res,next)=>{ console.log(`${req.method} ${req.path}`); next(); });
+app.get('/', (req,res)=>res.type('html').send(`<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Campus Node v1</title><style>body{background:#eaf2eb;color:#193d2d;font:20px system-ui;padding:8vw;max-width:800px}h1{font-size:56px}button{font:inherit;padding:16px 28px;border:0;border-radius:8px;background:#215f44;color:white}p{line-height:1.7}</style><p>CAMPUS HTTP / VERSION 01</p><h1>Express 서버 v1</h1><p>이 응답은 실행 중인 Node 서버에서 전달됩니다.</p><button id="hello">서버에 인사하기</button><p id="reply" aria-live="polite"></p><script>document.querySelector('#hello').onclick=async()=>{const r=await fetch('/greet',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'Campus'})});document.querySelector('#reply').textContent=(await r.json()).message}</script></html>`));
+app.post('/greet',(req,res)=>res.json({message:'안녕하세요, Campus! v1 서버가 응답했습니다.'}));
+app.get('/version',(req,res)=>res.json({version:'v1',port:process.env.PORT}));
+app.get('/api/example',(req,res)=>res.json({app:'Express sample',version:'v1'}));
+app.listen(Number(process.env.PORT),'0.0.0.0',()=>console.log(`NODE_READY v1 PORT=${process.env.PORT}`));

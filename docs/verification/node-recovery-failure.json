@@ -1,0 +1,8 @@
+{
+  "missing_image_status": "UNAVAILABLE",
+  "gateway_status": 503,
+  "static_preserved": true,
+  "automatic_restore": "RUNNING",
+  "same_image": "sha256:e7aa36c2ea804516f27540ad9e45e4d979915d940378aa268afff978ea16b351",
+  "no_rebuild": true
+}

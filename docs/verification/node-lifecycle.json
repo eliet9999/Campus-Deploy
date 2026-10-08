@@ -1,0 +1,51 @@
+{
+  "checks": [
+    "automatic NODE_SERVER detection; npm ci/image/start/health/READY; v1 production",
+    "nonroot/read-only/CPU/memory/PIDs/capabilities/no host ports; isolated runtime network",
+    "separate persisted build/runtime logs",
+    "POST proxy, user API, management API boundary, WebSocket rejection",
+    "v2 Preview preserves v1 production",
+    "failed promotion health check preserves production",
+    "v2 promote at same production URL",
+    "missing image rollback fails without changing v2 production",
+    "rollback recreates v1 from same image without npm/build",
+    "runtime failure is FAILED with stderr retained; existing production preserved",
+    "project cleanup removes only owned runtime/image; static and other Node production preserved",
+    "service restart preserves Node and static production",
+    "full project stop/start and missing production container: automatic image recovery, no rebuild",
+    "unrelated Docker containers unchanged (no global Docker restart/prune)"
+  ],
+  "failed_promote": {
+    "id": "2587f33e4ecb4cea83ed7c65a79fba4c",
+    "project_id": "0ac586f8cb644c92ae31b6b368d0ee49",
+    "deployment_id": "0e4f481de1954eb19f9813be54367819",
+    "previous_id": "48bf51c1231d45ebb187209ef098bbc0",
+    "kind": "promote",
+    "status": "FAILED",
+    "created": 1791431298.0071495,
+    "finished": 1791431328.620629,
+    "error": "HTTP health check 실패 (30초, ReadTimeout). npm start가 process.env.PORT로 0.0.0.0:8080에서 /에 2xx를 응답해야 합니다."
+  },
+  "failed_rollback": {
+    "id": "f03bbfde121f48d3be365f0f958e285d",
+    "project_id": "0ac586f8cb644c92ae31b6b368d0ee49",
+    "deployment_id": "48bf51c1231d45ebb187209ef098bbc0",
+    "previous_id": "0e4f481de1954eb19f9813be54367819",
+    "kind": "rollback",
+    "status": "FAILED",
+    "created": 1791431331.6682603,
+    "finished": 1791431332.024776,
+    "error": "404 Client Error for http+docker://localhost/v1.56/images/sha256:e7aa36c2ea804516f27540ad9e45e4d979915d940378aa268afff978ea16b351/json: Not Found (\"No such image: sha256:e7aa36c2ea804516f27540ad9e45e4d979915d940378aa268afff978ea16b351\")"
+  },
+  "project_id": "0ac586f8cb644c92ae31b6b368d0ee49",
+  "production_url": "http://p-node-demo-1791431260.localhost:8080",
+  "v1": "48bf51c1231d45ebb187209ef098bbc0",
+  "v2": "0e4f481de1954eb19f9813be54367819",
+  "image": "sha256:e7aa36c2ea804516f27540ad9e45e4d979915d940378aa268afff978ea16b351",
+  "static_url": "http://p-node-coexist-static-1791431260.localhost:8080",
+  "failed": "3b9593e95c674ea48a4f5f4e6cdfd83a",
+  "unrelated_resources": {
+    "count": 4,
+    "ids_and_states_unchanged": true
+  }
+}
